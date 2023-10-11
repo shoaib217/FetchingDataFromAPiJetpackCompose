@@ -74,6 +74,9 @@ class MainActivity : ComponentActivity() {
                 val displayMenuAppbar = remember {
                     mutableStateOf(false)
                 }
+                val displayMenuIcon = remember {
+                    mutableStateOf(true)
+                }
                 // A surface container using the 'background' color from the theme
                 val toolbarName = remember {
                     mutableStateOf("Product Info")
@@ -86,29 +89,31 @@ class MainActivity : ComponentActivity() {
                             titleContentColor = MaterialTheme.colorScheme.primary,
                         ),
                         actions = {
-                            IconButton(
-                                onClick = {
-                                    displayMenuAppbar.value = !displayMenuAppbar.value
-                                },
-                            ) {
-                                Icon(Icons.Default.MoreVert, contentDescription = "Menu")
-                            }
-
-                            DropdownMenu(
-                                expanded = displayMenuAppbar.value,
-                                onDismissRequest = {
-                                    displayMenuAppbar.value = !displayMenuAppbar.value
-                                }) {
-                                val categoryList = mainViewModel.categoryList.collectAsState()
-                                val categoryNames : MutableList<String> = setOf("All").toMutableList()
-                                categoryNames.addAll(categoryList.value?.keys?.toMutableList() ?: emptyList())
-                                categoryNames.forEach { categoryName ->
-                                    DropdownMenuItem(text = {
-                                        Text(text = categoryName)
-                                    }, onClick = {
-                                        mainViewModel.setFilterData(categoryName)
+                            if (displayMenuIcon.value){
+                                IconButton(
+                                    onClick = {
                                         displayMenuAppbar.value = !displayMenuAppbar.value
-                                    })
+                                    },
+                                ) {
+                                    Icon(Icons.Default.MoreVert, contentDescription = "Menu")
+                                }
+
+                                DropdownMenu(
+                                    expanded = displayMenuAppbar.value,
+                                    onDismissRequest = {
+                                        displayMenuAppbar.value = !displayMenuAppbar.value
+                                    }) {
+                                    val categoryList = mainViewModel.categoryList.collectAsState()
+                                    val categoryNames : MutableList<String> = setOf("All").toMutableList()
+                                    categoryNames.addAll(categoryList.value?.keys?.toMutableList() ?: emptyList())
+                                    categoryNames.forEach { categoryName ->
+                                        DropdownMenuItem(text = {
+                                            Text(text = categoryName)
+                                        }, onClick = {
+                                            mainViewModel.setFilterData(categoryName)
+                                            displayMenuAppbar.value = !displayMenuAppbar.value
+                                        })
+                                    }
                                 }
                             }
                         }
@@ -116,6 +121,7 @@ class MainActivity : ComponentActivity() {
                 }) { paddingValues ->
                     NavHost(navController = navController, startDestination = productScreen) {
                         composable(productScreen) {
+                            displayMenuIcon.value = true
                             toolbarName.value = "Product Info"
                             ProductScreen(
                                 mainViewModel = mainViewModel,
@@ -127,6 +133,7 @@ class MainActivity : ComponentActivity() {
                             "$detailScreen{id}",
                             arguments = listOf(navArgument("id") { type = NavType.IntType })
                         ) {
+                            displayMenuIcon.value = false
                             ProductDetailScreen(
                                 mainViewModel,
                                 it.arguments?.getInt("id"),
