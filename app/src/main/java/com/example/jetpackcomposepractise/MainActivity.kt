@@ -136,8 +136,7 @@ class MainActivity : ComponentActivity() {
                             displayMenuIcon.value = false
                             ProductDetailScreen(
                                 mainViewModel,
-                                it.arguments?.getInt("id"),
-                                navController
+                                it.arguments?.getInt("id")
                             ) { name ->
                                 toolbarName.value = name
                             }
@@ -151,7 +150,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val productScreen = "productScreen"
         const val detailScreen = "detailScreen/"
-        val TAG: String = MainViewModel::class.java.simpleName
+        val TAG: String = MainActivity::class.java.simpleName
     }
 }
 
@@ -160,11 +159,9 @@ class MainActivity : ComponentActivity() {
 fun ProductDetailScreen(
     mainViewModel: MainViewModel,
     id: Int?,
-    navController: NavHostController,
     setToolbarName: (String) -> Unit,
 ) {
-    val product = mainViewModel.getProduct(id)
-    product?.let { product ->
+    mainViewModel.getProduct(id)?.let { product ->
         Log.d(TAG, "device id -- ${product.id} / ${product.title}")
         setToolbarName(product.title)
         Column(modifier = Modifier.padding(8.dp)) {
@@ -184,8 +181,8 @@ fun ProductDetailScreen(
 @Composable
 fun ImageSlider(images: List<String>) {
     LazyRow() {
-        items(images) {
-            SubcomposeAsyncImage(model = it, contentDescription = "", modifier = Modifier
+        items(images) { url->
+            SubcomposeAsyncImage(model = url, contentDescription = "", modifier = Modifier
                 .padding(8.dp)
                 .size(350.dp, 250.dp),
                 alignment = Alignment.Center,

@@ -26,7 +26,7 @@ class MainViewModel : ViewModel() {
         getDevices()
     }
 
-    fun getDevices() {
+    private fun getDevices() {
         Log.d("viemodel","getDevices")
         val apiService = APIService.getInstance()
         viewModelScope.launch {
