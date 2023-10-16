@@ -1,10 +1,9 @@
 package com.example.jetpackcomposepractise
 
-import android.content.Context
 import android.os.Bundle
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.clickable
@@ -25,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -35,13 +35,22 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,6 +69,7 @@ import coil.compose.SubcomposeAsyncImage
 import com.example.jetpackcomposepractise.MainActivity.Companion.TAG
 import com.example.jetpackcomposepractise.data.Product
 import com.example.jetpackcomposepractise.ui.theme.JetpackComposePractiseTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val mainViewModel by viewModels<MainViewModel>()
@@ -71,6 +81,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             JetpackComposePractiseTheme {
                 val navController = rememberNavController()
+                val snackBarHostState = remember { SnackbarHostState() }
                 val displayMenuAppbar = remember {
                     mutableStateOf(false)
                 }
@@ -81,53 +92,68 @@ class MainActivity : ComponentActivity() {
                 val toolbarName = remember {
                     mutableStateOf("Product Info")
                 }
-                Scaffold(topBar = {
-                    TopAppBar(
-                        title = { Text(text = toolbarName.value) },
-                        colors = TopAppBarDefaults.smallTopAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            titleContentColor = MaterialTheme.colorScheme.primary,
-                        ),
-                        actions = {
-                            if (displayMenuIcon.value){
-                                IconButton(
-                                    onClick = {
-                                        displayMenuAppbar.value = !displayMenuAppbar.value
-                                    },
-                                ) {
-                                    Icon(Icons.Default.MoreVert, contentDescription = "Menu")
-                                }
-
-                                DropdownMenu(
-                                    expanded = displayMenuAppbar.value,
-                                    onDismissRequest = {
-                                        displayMenuAppbar.value = !displayMenuAppbar.value
-                                    }) {
-                                    val categoryList = mainViewModel.categoryList.collectAsState()
-                                    val categoryNames : MutableList<String> = setOf("All").toMutableList()
-                                    categoryNames.addAll(categoryList.value?.keys?.toMutableList() ?: emptyList())
-                                    categoryNames.forEach { categoryName ->
-                                        DropdownMenuItem(text = {
-                                            Text(text = categoryName)
-                                        }, onClick = {
-                                            mainViewModel.setFilterData(categoryName)
+                var showAlertDialog by remember {
+                    mutableStateOf(false)
+                }
+                Scaffold(
+                    snackbarHost = {
+                        SnackbarHost(hostState = snackBarHostState)
+                    },
+                    topBar = {
+                        TopAppBar(
+                            title = { Text(text = toolbarName.value) },
+                            colors = TopAppBarDefaults.smallTopAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                titleContentColor = MaterialTheme.colorScheme.primary,
+                            ),
+                            actions = {
+                                if (displayMenuIcon.value) {
+                                    IconButton(
+                                        onClick = {
                                             displayMenuAppbar.value = !displayMenuAppbar.value
-                                        })
+                                        },
+                                    ) {
+                                        Icon(Icons.Default.MoreVert, contentDescription = "Menu")
+                                    }
+
+                                    DropdownMenu(
+                                        expanded = displayMenuAppbar.value,
+                                        onDismissRequest = {
+                                            displayMenuAppbar.value = !displayMenuAppbar.value
+                                        }) {
+                                        val categoryList =
+                                            mainViewModel.categoryList.collectAsState()
+                                        categoryList.value?.forEach { categoryName ->
+                                            DropdownMenuItem(text = {
+                                                Text(text = categoryName)
+                                            }, onClick = {
+                                                mainViewModel.setFilterData(categoryName)
+                                                displayMenuAppbar.value = !displayMenuAppbar.value
+                                            })
+                                        }
                                     }
                                 }
                             }
-                        }
-                    )
-                }) { paddingValues ->
+                        )
+                    }) { paddingValues ->
                     NavHost(navController = navController, startDestination = productScreen) {
                         composable(productScreen) {
                             displayMenuIcon.value = true
                             toolbarName.value = "Product Info"
                             ProductScreen(
                                 mainViewModel = mainViewModel,
-                                applicationContext = applicationContext,
-                                paddingValues, navController
+                                paddingValues,
+                                navController, snackBarHostState
                             )
+                            if (showAlertDialog) {
+                                ExitDialog(onDismiss = { showAlertDialog = !showAlertDialog }) {
+                                    onDismiss()
+                                }
+                            }
+                            BackHandler {
+                                Log.d(TAG, "back press under scaffold")
+                                showAlertDialog = !showAlertDialog
+                            }
                         }
                         composable(
                             "$detailScreen{id}",
@@ -147,11 +173,64 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun onDismiss() {
+        this.finishAffinity()
+    }
+
     companion object {
         const val productScreen = "productScreen"
         const val detailScreen = "detailScreen/"
         val TAG: String = MainActivity::class.java.simpleName
     }
+}
+
+@Composable
+fun MySnackBar(snackBarHostState: SnackbarHostState, message: String) {
+    val scope = rememberCoroutineScope()
+    LaunchedEffect("key1") {
+        scope.launch {
+            val snackBarResult = snackBarHostState
+                .showSnackbar(
+                    message = message,
+                    actionLabel = "close",
+                    duration = SnackbarDuration.Short
+                )
+
+            when (snackBarResult) {
+                SnackbarResult.Dismissed -> {
+                    Log.d(TAG, "Dismissed")
+                }
+
+                SnackbarResult.ActionPerformed -> {
+                    Log.d(TAG, "ActionPerformed")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ExitDialog(onDismiss: () -> Unit, onYes: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onYes) {
+                Text(text = "Yes")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "No")
+            }
+        },
+        title = {
+            Text(
+                text = "Alert",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = { Text(text = "Are you sure you want to exit?") },
+    )
 }
 
 
@@ -181,7 +260,7 @@ fun ProductDetailScreen(
 @Composable
 fun ImageSlider(images: List<String>) {
     LazyRow() {
-        items(images) { url->
+        items(images) { url ->
             SubcomposeAsyncImage(model = url, contentDescription = "", modifier = Modifier
                 .padding(8.dp)
                 .size(350.dp, 250.dp),
@@ -204,16 +283,15 @@ fun ImageSlider(images: List<String>) {
 /**
  * product list screen which contains product
  * @param[mainViewModel] to collect data from api
- * @param[applicationContext] to show toast etc.
  * @param[paddingValues] apply padding  to content
  * @param[navController] for navigation between screens
  */
 @Composable
 fun ProductScreen(
     mainViewModel: MainViewModel,
-    applicationContext: Context,
     paddingValues: PaddingValues,
     navController: NavHostController,
+    snackBarHostState: SnackbarHostState,
 ) {
     val devices = mainViewModel.devices.collectAsState(initial = UiState.Loading)
     when (val result = devices.value) {
@@ -228,7 +306,7 @@ fun ProductScreen(
         }
 
         is UiState.Error -> {
-            Toast.makeText(applicationContext, result.message, Toast.LENGTH_SHORT).show()
+            MySnackBar(snackBarHostState, result.message)
         }
 
         is UiState.Success -> {

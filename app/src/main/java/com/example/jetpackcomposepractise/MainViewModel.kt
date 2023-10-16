@@ -1,7 +1,6 @@
 package com.example.jetpackcomposepractise
 
 import android.util.Log
-import androidx.lifecycle.VIEW_MODEL_STORE_OWNER_KEY
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.jetpackcomposepractise.data.APIService
@@ -18,8 +17,8 @@ class MainViewModel : ViewModel() {
     val devices: StateFlow<UiState> = _devices
     private var _deviceList = MutableStateFlow<DeviceList?>(null)
     val deviceList: StateFlow<DeviceList?> = _deviceList
-    private var _categoryList = MutableStateFlow<Map<String, List<Product>>?>(null)
-    val categoryList: StateFlow<Map<String, List<Product>>?> = _categoryList
+    private var _categoryList = MutableStateFlow<ArrayList<String>?>(null)
+    val categoryList: StateFlow<ArrayList<String>?> = _categoryList
     private var categoryDeviceList: DeviceList? = null
 
     init {
@@ -31,11 +30,13 @@ class MainViewModel : ViewModel() {
         val apiService = APIService.getInstance()
         viewModelScope.launch {
             try {
-                delay(600)
                 val product = apiService.getAllProducts()
                 _deviceList.value = product
                 categoryDeviceList = product
-                _categoryList.value = product?.products?.groupBy { it.category }
+                _categoryList.value =  product?.products?.groupBy { it.category }?.keys?.toCollection(
+                    arrayListOf("All")
+                )
+                delay(300)
                 _devices.emit(UiState.Success)
             } catch (e: Exception) {
                 Log.e("Exception", e.message ?: "Something went wrong")
