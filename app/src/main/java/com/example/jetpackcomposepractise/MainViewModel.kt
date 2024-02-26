@@ -51,7 +51,7 @@ class MainViewModel : ViewModel() {
         }
     }
 
-    fun setFilterData(category: String) {
+    fun filterProductByCategory(category: String) {
         viewModelScope.launch {
             _deviceList.value = categoryDeviceList
             _deviceList.emit(

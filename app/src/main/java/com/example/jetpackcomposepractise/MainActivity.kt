@@ -82,14 +82,14 @@ class MainActivity : ComponentActivity() {
             JetpackComposePractiseTheme {
                 val navController = rememberNavController()
                 val snackBarHostState = remember { SnackbarHostState() }
-                val displayMenuAppbar = remember {
+                var displayMenuAppbar by remember {
                     mutableStateOf(false)
                 }
-                val displayMenuIcon = remember {
+                var displayMenuIcon by remember {
                     mutableStateOf(true)
                 }
                 // A surface container using the 'background' color from the theme
-                val toolbarName = remember {
+                var toolbarName by remember {
                     mutableStateOf("Product Info")
                 }
                 var showAlertDialog by remember {
@@ -101,25 +101,25 @@ class MainActivity : ComponentActivity() {
                     },
                     topBar = {
                         TopAppBar(
-                            title = { Text(text = toolbarName.value) },
+                            title = { Text(text = toolbarName) },
                             colors = TopAppBarDefaults.smallTopAppBarColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                                 titleContentColor = MaterialTheme.colorScheme.primary,
                             ),
                             actions = {
-                                if (displayMenuIcon.value) {
+                                if (displayMenuIcon) {
                                     IconButton(
                                         onClick = {
-                                            displayMenuAppbar.value = !displayMenuAppbar.value
+                                            displayMenuAppbar = !displayMenuAppbar
                                         },
                                     ) {
                                         Icon(Icons.Default.MoreVert, contentDescription = "Menu")
                                     }
 
                                     DropdownMenu(
-                                        expanded = displayMenuAppbar.value,
+                                        expanded = displayMenuAppbar,
                                         onDismissRequest = {
-                                            displayMenuAppbar.value = !displayMenuAppbar.value
+                                            displayMenuAppbar = !displayMenuAppbar
                                         }) {
                                         val categoryList =
                                             mainViewModel.categoryList.collectAsState()
@@ -127,8 +127,8 @@ class MainActivity : ComponentActivity() {
                                             DropdownMenuItem(text = {
                                                 Text(text = categoryName)
                                             }, onClick = {
-                                                mainViewModel.setFilterData(categoryName)
-                                                displayMenuAppbar.value = !displayMenuAppbar.value
+                                                mainViewModel.filterProductByCategory(categoryName)
+                                                displayMenuAppbar = !displayMenuAppbar
                                             })
                                         }
                                     }
@@ -138,8 +138,8 @@ class MainActivity : ComponentActivity() {
                     }) { paddingValues ->
                     NavHost(navController = navController, startDestination = productScreen) {
                         composable(productScreen) {
-                            displayMenuIcon.value = true
-                            toolbarName.value = "Product Info"
+                            displayMenuIcon = true
+                            toolbarName = "Product Info"
                             ProductScreen(
                                 mainViewModel = mainViewModel,
                                 paddingValues,
@@ -159,12 +159,12 @@ class MainActivity : ComponentActivity() {
                             "$detailScreen{id}",
                             arguments = listOf(navArgument("id") { type = NavType.IntType })
                         ) {
-                            displayMenuIcon.value = false
+                            displayMenuIcon = false
                             ProductDetailScreen(
                                 mainViewModel,
                                 it.arguments?.getInt("id")
                             ) { name ->
-                                toolbarName.value = name
+                                toolbarName = name
                             }
                         }
                     }
@@ -320,7 +320,7 @@ fun ProductScreen(
 fun ShowDeviceList(
     mainViewModel: MainViewModel,
     paddingValues: PaddingValues,
-    navController: NavHostController,
+    navController: NavHostController
 ) {
     val data = mainViewModel.deviceList.collectAsState()
     Log.d(TAG, "data $data")
