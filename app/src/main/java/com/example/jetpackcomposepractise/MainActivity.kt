@@ -70,6 +70,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import coil.compose.SubcomposeAsyncImage
 import com.example.jetpackcomposepractise.MainActivity.Companion.TAG
+import com.example.jetpackcomposepractise.data.DeviceList
 import com.example.jetpackcomposepractise.data.Product
 import com.example.jetpackcomposepractise.ui.theme.JetpackComposePractiseTheme
 import kotlinx.coroutines.launch
@@ -98,6 +99,8 @@ class MainActivity : ComponentActivity() {
                 var showAlertDialog by remember {
                     mutableStateOf(false)
                 }
+                var devices = mainViewModel.devices.collectAsState()
+                var deviceList = mainViewModel.deviceList.collectAsState()
                 Scaffold(
                     snackbarHost = {
                         SnackbarHost(hostState = snackBarHostState)
@@ -147,9 +150,10 @@ class MainActivity : ComponentActivity() {
                             displayMenuIcon = true
                             toolbarName = "Product Info"
                             ProductScreen(
-                                mainViewModel = mainViewModel,
                                 paddingValues,
-                                navController, snackBarHostState
+                                navController, snackBarHostState,
+                                devices.value,
+                                deviceList.value
                             )
                             if (showAlertDialog) {
                                 ExitDialog(onDismiss = { showAlertDialog = !showAlertDialog }) {
@@ -280,6 +284,7 @@ fun ImageSlider(images: List<String>) {
                 .size(350.dp, 250.dp),
                 alignment = Alignment.Center,
                 contentScale = ContentScale.FillWidth,
+                imageLoader = MyApplication.imageLoader,
                 loading = {
                     Box(
                         contentAlignment = Alignment.Center,
@@ -296,19 +301,19 @@ fun ImageSlider(images: List<String>) {
 
 /**
  * product list screen which contains product
- * @param[mainViewModel] to collect data from api
  * @param[paddingValues] apply padding  to content
  * @param[navController] for navigation between screens
  */
 @Composable
 fun ProductScreen(
-    mainViewModel: MainViewModel,
     paddingValues: PaddingValues,
     navController: NavHostController,
     snackBarHostState: SnackbarHostState,
+    result: UiState,
+    deviceList: DeviceList?
+
 ) {
-    val devices = mainViewModel.devices.collectAsState(initial = UiState.Loading)
-    when (val result = devices.value) {
+    when (result) {
         is UiState.Loading -> {
             Box(
                 contentAlignment = Alignment.Center,
@@ -325,25 +330,23 @@ fun ProductScreen(
 
         is UiState.Success -> {
             println("Under Success")
-            ShowDeviceList(mainViewModel, paddingValues, navController)
+            ShowDeviceList(paddingValues, navController,deviceList)
         }
     }
 }
 
 @Composable
 fun ShowDeviceList(
-    mainViewModel: MainViewModel,
     paddingValues: PaddingValues,
     navController: NavHostController,
+    deviceList: DeviceList?
 ) {
-    val data = mainViewModel.deviceList.collectAsState()
-    Log.d(TAG, "data $data")
-    data.value?.let { deviceList ->
-        LazyVerticalGrid(columns = GridCells.Fixed(2), contentPadding = paddingValues) {
-            deviceList.products?.let { prod ->
-                items(prod) { product ->
-                    DeviceCard(product, navController)
-                }
+    Log.d(TAG, "data $deviceList")
+
+    LazyVerticalGrid(columns = GridCells.Fixed(2), contentPadding = paddingValues) {
+        deviceList?.products?.let { prod ->
+            items(prod) { product ->
+                DeviceCard(product, navController)
             }
         }
     }
