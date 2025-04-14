@@ -6,6 +6,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -102,12 +105,12 @@ class MainActivity : ComponentActivity() {
                     topBar = {
                         TopAppBar(
                             title = { Text(text = toolbarName) },
-                            colors = TopAppBarDefaults.smallTopAppBarColors(
+                            colors = TopAppBarDefaults.mediumTopAppBarColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                                 titleContentColor = MaterialTheme.colorScheme.primary,
                             ),
                             actions = {
-                                if (displayMenuIcon) {
+                                AnimatedVisibility(displayMenuIcon) {
                                     IconButton(
                                         onClick = {
                                             displayMenuAppbar = !displayMenuAppbar
@@ -116,6 +119,8 @@ class MainActivity : ComponentActivity() {
                                         Icon(Icons.Default.MoreVert, contentDescription = "Menu")
                                     }
 
+                                }
+                                AnimatedVisibility(displayMenuAppbar) {
                                     DropdownMenu(
                                         expanded = displayMenuAppbar,
                                         onDismissRequest = {
@@ -132,6 +137,7 @@ class MainActivity : ComponentActivity() {
                                             })
                                         }
                                     }
+
                                 }
                             }
                         )
@@ -157,7 +163,13 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(
                             "$detailScreen{id}",
-                            arguments = listOf(navArgument("id") { type = NavType.IntType })
+                            arguments = listOf(navArgument("id") { type = NavType.IntType }),
+                            popExitTransition = {
+                                slideOutHorizontally(
+                                targetOffsetX = { it },
+                                animationSpec = tween(100)
+                            )
+                            }
                         ) {
                             displayMenuIcon = false
                             ProductDetailScreen(
@@ -242,12 +254,14 @@ fun ProductDetailScreen(
 ) {
     mainViewModel.getProduct(id)?.let { product ->
         Log.d(TAG, "device id -- ${product.id} / ${product.title}")
-        setToolbarName(product.title)
+        setToolbarName(product.title ?: "")
         Column(modifier = Modifier.padding(8.dp)) {
             ImageSlider(product.images)
             Text(text = "Details", fontSize = 26.sp, fontWeight = FontWeight.Bold)
             CustomText("Category: ${product.category}")
-            CustomText("Brand: ${product.brand}")
+            if (!product.brand.isNullOrEmpty() && !product.brand.equals("null",true)){
+                CustomText("Brand: ${product.brand}")
+            }
             CustomText("Name: ${product.title}")
             CustomText("Price: $${product.price}")
             CustomText("Product Description: ${product.description}")
@@ -320,7 +334,7 @@ fun ProductScreen(
 fun ShowDeviceList(
     mainViewModel: MainViewModel,
     paddingValues: PaddingValues,
-    navController: NavHostController
+    navController: NavHostController,
 ) {
     val data = mainViewModel.deviceList.collectAsState()
     Log.d(TAG, "data $data")
@@ -373,8 +387,12 @@ fun DeviceCard(product: Product, navController: NavHostController) {
                     }
                 },
             )
-            CustomText("Brand: ${product.brand}")
-            CustomText("Title: ${product.title}")
+            if (!product.brand.isNullOrEmpty() && !product.brand.equals("null",true)){
+                CustomText("Brand: ${product.brand}")
+            }
+            if (!product.title.isNullOrEmpty() && !product.title.equals("null",true)){
+                CustomText("Title: ${product.title}")
+            }
             CustomText("Price: $${product.price}")
         }
     }

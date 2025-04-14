@@ -1,15 +1,15 @@
 [versions]
-activityCompose = "1.8.2"
-androidx-junit = "1.1.5"
-coil-compose = "2.4.0"
+activityCompose = "1.10.1"
+androidx-junit = "1.2.1"
+coil-compose = "2.6.0"
 converterGson = "2.9.0"
 coreKtx = "1.12.0"
-espressoCore = "3.5.1"
+espressoCore = "3.6.1"
 junit = "4.13.2"
-lifecycleRuntimeKtx = "2.7.0"
-navVersion = "2.7.7"
+lifecycleRuntimeKtx = "2.8.7"
+navVersion = "2.8.9"
 retrofit = "2.9.0"
-compose-bom = "2023.03.00"
+compose-bom = "2025.04.00"
 
 [libraries]
 activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
