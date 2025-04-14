@@ -60,6 +60,24 @@ class MainViewModel : ViewModel() {
             )
         }
     }
+
+    fun setFilterData(filter: Filter?) {
+        when(filter){
+            Filter.PRICE -> {
+                _deviceList.value = _deviceList.value?.copy(products = _deviceList.value?.products?.sortedByDescending { it.price })
+            }
+            Filter.RATING -> {
+                _deviceList.value = _deviceList.value?.copy(products = _deviceList.value?.products?.sortedByDescending { it.rating})
+            }
+            Filter.STOCK -> {
+                _deviceList.value = _deviceList.value?.copy(products = _deviceList.value?.products?.sortedByDescending { it.stock})
+            }
+            null -> {
+                _deviceList.value = categoryDeviceList
+            }
+        }
+
+    }
 }
 
 sealed class UiState {

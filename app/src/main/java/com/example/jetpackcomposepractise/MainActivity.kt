@@ -12,7 +12,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -26,6 +26,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
@@ -34,6 +35,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -101,6 +103,8 @@ class MainActivity : ComponentActivity() {
                 }
                 var devices = mainViewModel.devices.collectAsState()
                 var deviceList = mainViewModel.deviceList.collectAsState()
+                var selectedFilter by remember { mutableStateOf<Filter?>(null) }
+
                 Scaffold(
                     snackbarHost = {
                         SnackbarHost(hostState = snackBarHostState)
@@ -149,12 +153,19 @@ class MainActivity : ComponentActivity() {
                         composable(productScreen) {
                             displayMenuIcon = true
                             toolbarName = "Product Info"
-                            ProductScreen(
-                                paddingValues,
-                                navController, snackBarHostState,
-                                devices.value,
-                                deviceList.value
-                            )
+                            Column (modifier = Modifier.padding(paddingValues)){
+                                SingleSelectFilterChips(filters = Filter.values(), selectedFilter, onFilterSelected = {
+                                    selectedFilter = if(it == selectedFilter) null else it
+                                    Log.d(TAG, "filter selected: ${selectedFilter?.name} ")
+                                    mainViewModel.setFilterData(selectedFilter)
+                                })
+                                ProductScreen(
+                                    navController, snackBarHostState,
+                                    devices.value,
+                                    deviceList.value
+                                )
+
+                            }
                             if (showAlertDialog) {
                                 ExitDialog(onDismiss = { showAlertDialog = !showAlertDialog }) {
                                     onDismiss()
@@ -301,18 +312,16 @@ fun ImageSlider(images: List<String>) {
 
 /**
  * product list screen which contains product
- * @param[paddingValues] apply padding  to content
  * @param[navController] for navigation between screens
  */
 @Composable
 fun ProductScreen(
-    paddingValues: PaddingValues,
     navController: NavHostController,
     snackBarHostState: SnackbarHostState,
     result: UiState,
-    deviceList: DeviceList?
+    deviceList: DeviceList?,
 
-) {
+    ) {
     when (result) {
         is UiState.Loading -> {
             Box(
@@ -330,20 +339,19 @@ fun ProductScreen(
 
         is UiState.Success -> {
             println("Under Success")
-            ShowDeviceList(paddingValues, navController,deviceList)
+            ShowDeviceList(navController,deviceList)
         }
     }
 }
 
 @Composable
 fun ShowDeviceList(
-    paddingValues: PaddingValues,
     navController: NavHostController,
-    deviceList: DeviceList?
+    deviceList: DeviceList?,
 ) {
     Log.d(TAG, "data $deviceList")
 
-    LazyVerticalGrid(columns = GridCells.Fixed(2), contentPadding = paddingValues) {
+    LazyVerticalGrid(columns = GridCells.Fixed(2)) {
         deviceList?.products?.let { prod ->
             items(prod) { product ->
                 DeviceCard(product, navController)
@@ -423,5 +431,36 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
 fun GreetingPreview() {
     JetpackComposePractiseTheme {
         Greeting("Android")
+    }
+}
+
+
+enum class Filter(val value: String){
+    PRICE("Price"),
+    RATING("Rating"),
+    STOCK("Stock")
+}
+
+@Composable
+fun SingleSelectFilterChips(filters: Array<Filter>,selectedFilter: Filter?, onFilterSelected: (Filter?) -> Unit) {
+
+    Column {
+        Row {
+            filters.forEach { filter ->
+                FilterChip(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    selected = selectedFilter == filter,
+                    onClick = {
+                        onFilterSelected(filter)
+                    },
+                    label = { Text(filter.value) },
+                    leadingIcon = if (selectedFilter == filter) {
+                        { Icon(imageVector = Icons.Filled.Done, contentDescription = "Selected") }
+                    } else {
+                        null
+                    }
+                )
+            }
+        }
     }
 }
