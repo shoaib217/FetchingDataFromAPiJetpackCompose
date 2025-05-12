@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.jetpackcomposepractise.data.APIService
 import com.example.jetpackcomposepractise.data.DeviceList
-import com.example.jetpackcomposepractise.data.Product
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,12 +41,6 @@ class MainViewModel : ViewModel() {
                 Log.e("Exception", e.message ?: "Something went wrong")
                 _devices.emit(UiState.Error("Something went wrong"))
             }
-        }
-    }
-
-    fun getProduct(id: Int?): Product? {
-        return deviceList.value?.products?.first {
-            it.id == id
         }
     }
 

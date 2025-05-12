@@ -71,6 +71,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import coil.compose.SubcomposeAsyncImage
+import com.example.jetpackcomposepractise.MainActivity.Companion.DETAIL_SCREEN
+import com.example.jetpackcomposepractise.MainActivity.Companion.PRODUCT_SCREEN
 import com.example.jetpackcomposepractise.MainActivity.Companion.TAG
 import com.example.jetpackcomposepractise.data.DeviceList
 import com.example.jetpackcomposepractise.data.Product
@@ -86,116 +88,28 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             JetpackComposePractiseTheme {
-                val navController = rememberNavController()
-                val snackBarHostState = remember { SnackbarHostState() }
-                var displayMenuAppbar by remember {
-                    mutableStateOf(false)
-                }
-                var displayMenuIcon by remember {
-                    mutableStateOf(true)
-                }
+
                 // A surface container using the 'background' color from the theme
-                var toolbarName by remember {
-                    mutableStateOf("Product Info")
-                }
-                var showAlertDialog by remember {
-                    mutableStateOf(false)
-                }
-                var devices = mainViewModel.devices.collectAsState()
-                var deviceList = mainViewModel.deviceList.collectAsState()
-                var selectedFilter by remember { mutableStateOf<Filter?>(null) }
 
-                Scaffold(
-                    snackbarHost = {
-                        SnackbarHost(hostState = snackBarHostState)
-                    },
-                    topBar = {
-                        TopAppBar(
-                            title = { Text(text = toolbarName) },
-                            colors = TopAppBarDefaults.mediumTopAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                titleContentColor = MaterialTheme.colorScheme.primary,
-                            ),
-                            actions = {
-                                AnimatedVisibility(displayMenuIcon) {
-                                    IconButton(
-                                        onClick = {
-                                            displayMenuAppbar = !displayMenuAppbar
-                                        },
-                                    ) {
-                                        Icon(Icons.Default.MoreVert, contentDescription = "Menu")
-                                    }
+                val devices by mainViewModel.devices.collectAsState()
+                val deviceList by mainViewModel.deviceList.collectAsState()
+                val categoryList by
+                mainViewModel.categoryList.collectAsState()
 
-                                }
-                                AnimatedVisibility(displayMenuAppbar) {
-                                    DropdownMenu(
-                                        expanded = displayMenuAppbar,
-                                        onDismissRequest = {
-                                            displayMenuAppbar = !displayMenuAppbar
-                                        }) {
-                                        val categoryList =
-                                            mainViewModel.categoryList.collectAsState()
-                                        categoryList.value?.forEach { categoryName ->
-                                            DropdownMenuItem(text = {
-                                                Text(text = categoryName)
-                                            }, onClick = {
-                                                mainViewModel.filterProductByCategory(categoryName)
-                                                displayMenuAppbar = !displayMenuAppbar
-                                            })
-                                        }
-                                    }
-
-                                }
-                            }
-                        )
-                    }) { paddingValues ->
-                    NavHost(navController = navController, startDestination = productScreen) {
-                        composable(productScreen) {
-                            displayMenuIcon = true
-                            toolbarName = "Product Info"
-                            Column (modifier = Modifier.padding(paddingValues)){
-                                SingleSelectFilterChips(filters = Filter.values(), selectedFilter, onFilterSelected = {
-                                    selectedFilter = if(it == selectedFilter) null else it
-                                    Log.d(TAG, "filter selected: ${selectedFilter?.name} ")
-                                    mainViewModel.setFilterData(selectedFilter)
-                                })
-                                ProductScreen(
-                                    navController, snackBarHostState,
-                                    devices.value,
-                                    deviceList.value
-                                )
-
-                            }
-                            if (showAlertDialog) {
-                                ExitDialog(onDismiss = { showAlertDialog = !showAlertDialog }) {
-                                    onDismiss()
-                                }
-                            }
-                            BackHandler {
-                                Log.d(TAG, "back press under scaffold")
-                                showAlertDialog = !showAlertDialog
-                            }
-                        }
-                        composable(
-                            "$detailScreen{id}",
-                            arguments = listOf(navArgument("id") { type = NavType.IntType }),
-                            popExitTransition = {
-                                slideOutHorizontally(
-                                targetOffsetX = { it },
-                                animationSpec = tween(100)
-                            )
-                            }
-                        ) {
-                            displayMenuIcon = false
-                            ProductDetailScreen(
-                                mainViewModel,
-                                it.arguments?.getInt("id")
-                            ) { name ->
-                                toolbarName = name
-                            }
-                        }
+                ProductRoot(devices, deviceList, categoryList, object : ClickActions {
+                    override fun filterProductByCategory(category: String) {
+                        mainViewModel.filterProductByCategory(category)
                     }
-                }
+
+                    override fun filterProductByType(selectedFilter: Filter?) {
+                        mainViewModel.setFilterData(selectedFilter)
+                    }
+
+                    override fun onDismiss() {
+                        this@MainActivity.onDismiss()
+                    }
+                })
+
             }
         }
     }
@@ -205,11 +119,138 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
-        const val productScreen = "productScreen"
-        const val detailScreen = "detailScreen/"
+        const val PRODUCT_SCREEN = "productScreen"
+        const val DETAIL_SCREEN = "detailScreen/"
         val TAG: String = MainActivity::class.java.simpleName
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProductRoot(
+    devices: UiState,
+    deviceList: DeviceList?,
+    categoryList: ArrayList<String>?,
+    clickActions: ClickActions,
+) {
+    var selectedFilter by remember { mutableStateOf<Filter?>(null) }
+
+    val snackBarHostState = remember { SnackbarHostState() }
+    var toolbarName by remember {
+        mutableStateOf("Product Info")
+    }
+    var showAlertDialog by remember {
+        mutableStateOf(false)
+    }
+    val navController = rememberNavController()
+    var displayMenuAppbar by remember {
+        mutableStateOf(false)
+    }
+    var displayMenuIcon by remember {
+        mutableStateOf(true)
+    }
+    Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackBarHostState)
+        },
+        topBar = {
+            TopAppBar(
+                title = { Text(text = toolbarName) },
+                colors = TopAppBarDefaults.mediumTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.primary,
+                ),
+                actions = {
+                    AnimatedVisibility(displayMenuIcon) {
+                        IconButton(
+                            onClick = {
+                                displayMenuAppbar = !displayMenuAppbar
+                            },
+                        ) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Menu")
+                        }
+
+                    }
+                    AnimatedVisibility(displayMenuAppbar) {
+                        DropdownMenu(
+                            expanded = displayMenuAppbar,
+                            onDismissRequest = {
+                                displayMenuAppbar = !displayMenuAppbar
+                            }) {
+
+                            categoryList?.forEach { categoryName ->
+                                DropdownMenuItem(text = {
+                                    Text(text = categoryName)
+                                }, onClick = {
+                                    clickActions.filterProductByCategory(categoryName)
+                                    displayMenuAppbar = !displayMenuAppbar
+                                })
+                            }
+                        }
+
+                    }
+                }
+            )
+        }) { paddingValues ->
+        NavHost(
+            modifier = Modifier.padding(paddingValues),
+            navController = navController,
+            startDestination = PRODUCT_SCREEN
+        ) {
+            composable(PRODUCT_SCREEN) {
+                displayMenuIcon = true
+                toolbarName = "Product Info"
+                Column {
+                    SingleSelectFilterChips(
+                        filters = Filter.values(),
+                        selectedFilter,
+                        onFilterSelected = {
+                            selectedFilter = if (it == selectedFilter) null else it
+                            Log.d(TAG, "filter selected: ${selectedFilter?.name} ")
+                            clickActions.filterProductByType(selectedFilter)
+                        })
+                    ProductScreen(
+                        navController, snackBarHostState,
+                        devices,
+                        deviceList
+                    )
+
+                }
+                if (showAlertDialog) {
+                    ExitDialog(onDismiss = { showAlertDialog = !showAlertDialog }) {
+                        clickActions.onDismiss()
+                    }
+                }
+                BackHandler {
+                    Log.d(TAG, "back press under scaffold")
+                    showAlertDialog = !showAlertDialog
+                }
+            }
+            composable(
+                "$DETAIL_SCREEN{id}",
+                arguments = listOf(navArgument("id") { type = NavType.IntType }),
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(100)
+                    )
+                }
+            ) {
+                displayMenuIcon = false
+                val selectedProduct = deviceList?.products?.first { product ->
+                    product.id == it.arguments?.getInt("id")
+                }
+                toolbarName = selectedProduct?.title ?: "Product Info"
+                selectedProduct?.let {
+                    ProductDetailScreen(
+                        it
+                    )
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
 fun MySnackBar(snackBarHostState: SnackbarHostState, message: String) {
@@ -263,36 +304,33 @@ fun ExitDialog(onDismiss: () -> Unit, onYes: () -> Unit) {
 
 @Composable
 fun ProductDetailScreen(
-    mainViewModel: MainViewModel,
-    id: Int?,
-    setToolbarName: (String) -> Unit,
+    product: Product,
 ) {
-    mainViewModel.getProduct(id)?.let { product ->
-        Log.d(TAG, "device id -- ${product.id} / ${product.title}")
-        setToolbarName(product.title ?: "")
-        Column(modifier = Modifier.padding(8.dp)) {
-            ImageSlider(product.images)
-            Text(text = "Details", fontSize = 26.sp, fontWeight = FontWeight.Bold)
-            CustomText("Category: ${product.category}")
-            if (!product.brand.isNullOrEmpty() && !product.brand.equals("null",true)){
-                CustomText("Brand: ${product.brand}")
-            }
-            CustomText("Name: ${product.title}")
-            CustomText("Price: $${product.price}")
-            CustomText("Product Description: ${product.description}")
-            CustomText("Rating: ${product.rating} / 5")
-            CustomText("Remaining: ${product.stock}")
+    Log.d(TAG, "device id -- ${product.id} / ${product.title}")
+    Column(modifier = Modifier.padding(8.dp)) {
+        ImageSlider(product.images)
+        Text(text = "Details", fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        CustomText("Category: ${product.category}")
+        if (!product.brand.isNullOrEmpty() && !product.brand.equals("null", true)) {
+            CustomText("Brand: ${product.brand}")
         }
+        CustomText("Name: ${product.title}")
+        CustomText("Price: $${product.price}")
+        CustomText("Product Description: ${product.description}")
+        CustomText("Rating: ${product.rating} / 5")
+        CustomText("Remaining: ${product.stock}")
     }
+
 }
 
 @Composable
 fun ImageSlider(images: List<String>) {
     LazyRow() {
         items(images) { url ->
-            SubcomposeAsyncImage(model = url, contentDescription = "", modifier = Modifier
-                .padding(8.dp)
-                .size(350.dp, 250.dp),
+            SubcomposeAsyncImage(
+                model = url, contentDescription = "", modifier = Modifier
+                    .padding(8.dp)
+                    .size(350.dp, 250.dp),
                 alignment = Alignment.Center,
                 contentScale = ContentScale.FillWidth,
                 imageLoader = MyApplication.imageLoader,
@@ -339,7 +377,7 @@ fun ProductScreen(
 
         is UiState.Success -> {
             println("Under Success")
-            ShowDeviceList(navController,deviceList)
+            ShowDeviceList(navController, deviceList)
         }
     }
 }
@@ -376,7 +414,7 @@ fun DeviceCard(product: Product, navController: NavHostController) {
                 .verticalScroll(rememberScrollState())
                 .clickable(
                     onClick = {
-                        navController.navigate(MainActivity.detailScreen + product.id)
+                        navController.navigate(MainActivity.DETAIL_SCREEN + product.id)
                     }
                 ),
         ) {
@@ -398,10 +436,10 @@ fun DeviceCard(product: Product, navController: NavHostController) {
                     }
                 },
             )
-            if (!product.brand.isNullOrEmpty() && !product.brand.equals("null",true)){
+            if (!product.brand.isNullOrEmpty() && !product.brand.equals("null", true)) {
                 CustomText("Brand: ${product.brand}")
             }
-            if (!product.title.isNullOrEmpty() && !product.title.equals("null",true)){
+            if (!product.title.isNullOrEmpty() && !product.title.equals("null", true)) {
                 CustomText("Title: ${product.title}")
             }
             CustomText("Price: $${product.price}")
@@ -435,14 +473,18 @@ fun GreetingPreview() {
 }
 
 
-enum class Filter(val value: String){
+enum class Filter(val value: String) {
     PRICE("Price"),
     RATING("Rating"),
     STOCK("Stock")
 }
 
 @Composable
-fun SingleSelectFilterChips(filters: Array<Filter>,selectedFilter: Filter?, onFilterSelected: (Filter?) -> Unit) {
+fun SingleSelectFilterChips(
+    filters: Array<Filter>,
+    selectedFilter: Filter?,
+    onFilterSelected: (Filter?) -> Unit,
+) {
 
     Column {
         Row {
@@ -463,4 +505,18 @@ fun SingleSelectFilterChips(filters: Array<Filter>,selectedFilter: Filter?, onFi
             }
         }
     }
+}
+
+interface ClickActions {
+    fun filterProductByCategory(category: String)
+
+    fun filterProductByType(selectedFilter: Filter?)
+
+    fun onDismiss()
+}
+
+
+@Composable
+fun TemplateScreen(){
+
 }
