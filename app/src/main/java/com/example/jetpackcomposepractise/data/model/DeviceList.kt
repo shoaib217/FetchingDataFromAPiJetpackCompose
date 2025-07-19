@@ -1,4 +1,4 @@
-package com.example.jetpackcomposepractise.data
+package com.example.jetpackcomposepractise.data.model
 
 data class DeviceList(
     val limit: Int,

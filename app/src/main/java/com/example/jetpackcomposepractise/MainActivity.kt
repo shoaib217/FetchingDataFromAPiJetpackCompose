@@ -74,11 +74,15 @@ import coil.compose.SubcomposeAsyncImage
 import com.example.jetpackcomposepractise.MainActivity.Companion.DETAIL_SCREEN
 import com.example.jetpackcomposepractise.MainActivity.Companion.PRODUCT_SCREEN
 import com.example.jetpackcomposepractise.MainActivity.Companion.TAG
-import com.example.jetpackcomposepractise.data.DeviceList
-import com.example.jetpackcomposepractise.data.Product
+import com.example.jetpackcomposepractise.data.model.DeviceList
+import com.example.jetpackcomposepractise.data.model.Product
 import com.example.jetpackcomposepractise.ui.theme.JetpackComposePractiseTheme
+import com.example.jetpackcomposepractise.ui.viewmodel.MainViewModel
+import com.example.jetpackcomposepractise.ui.viewmodel.UiState
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val mainViewModel by viewModels<MainViewModel>()
 

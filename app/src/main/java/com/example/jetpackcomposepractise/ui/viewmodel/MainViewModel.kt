@@ -1,16 +1,22 @@
-package com.example.jetpackcomposepractise
+package com.example.jetpackcomposepractise.ui.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.jetpackcomposepractise.data.APIService
-import com.example.jetpackcomposepractise.data.DeviceList
+import com.example.jetpackcomposepractise.Filter
+import com.example.jetpackcomposepractise.data.model.DeviceList
+import com.example.jetpackcomposepractise.data.repository.ProductRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import jakarta.inject.Inject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class MainViewModel : ViewModel() {
+@HiltViewModel
+class MainViewModel @Inject constructor(
+    private val productRepository: ProductRepository,
+) : ViewModel() {
 
     private var _devices = MutableStateFlow<UiState>(UiState.Loading)
     val devices: StateFlow<UiState> = _devices
@@ -26,10 +32,9 @@ class MainViewModel : ViewModel() {
 
     private fun getDevices() {
         Log.d("viemodel","getDevices")
-        val apiService = APIService.getInstance()
         viewModelScope.launch {
             try {
-                val product = apiService.getAllProducts()
+                val product = productRepository.getProducts()
                 _deviceList.value = product
                 categoryDeviceList = product
                 _categoryList.value =  product?.products?.groupBy { it.category }?.keys?.toCollection(
