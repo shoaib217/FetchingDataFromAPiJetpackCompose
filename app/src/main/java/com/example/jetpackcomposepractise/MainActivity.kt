@@ -74,7 +74,6 @@ import coil.compose.SubcomposeAsyncImage
 import com.example.jetpackcomposepractise.MainActivity.Companion.DETAIL_SCREEN
 import com.example.jetpackcomposepractise.MainActivity.Companion.PRODUCT_SCREEN
 import com.example.jetpackcomposepractise.MainActivity.Companion.TAG
-import com.example.jetpackcomposepractise.data.model.DeviceList
 import com.example.jetpackcomposepractise.data.model.Product
 import com.example.jetpackcomposepractise.ui.theme.JetpackComposePractiseTheme
 import com.example.jetpackcomposepractise.ui.viewmodel.MainViewModel
@@ -133,7 +132,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun ProductRoot(
     devices: UiState,
-    deviceList: DeviceList?,
+    deviceList: List<Product>?,
     categoryList: ArrayList<String>?,
     clickActions: ClickActions,
 ) {
@@ -241,7 +240,7 @@ fun ProductRoot(
                 }
             ) {
                 displayMenuIcon = false
-                val selectedProduct = deviceList?.products?.first { product ->
+                val selectedProduct = deviceList?.first { product ->
                     product.id == it.arguments?.getInt("id")
                 }
                 toolbarName = selectedProduct?.title ?: "Product Info"
@@ -361,7 +360,7 @@ fun ProductScreen(
     navController: NavHostController,
     snackBarHostState: SnackbarHostState,
     result: UiState,
-    deviceList: DeviceList?,
+    deviceList: List<Product>?,
 
     ) {
     when (result) {
@@ -389,12 +388,12 @@ fun ProductScreen(
 @Composable
 fun ShowDeviceList(
     navController: NavHostController,
-    deviceList: DeviceList?,
+    deviceList: List<Product>?,
 ) {
     Log.d(TAG, "data $deviceList")
 
     LazyVerticalGrid(columns = GridCells.Fixed(2)) {
-        deviceList?.products?.let { prod ->
+        deviceList?.let { prod ->
             items(prod) { product ->
                 DeviceCard(product, navController)
             }

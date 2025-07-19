@@ -1,12 +1,15 @@
 package com.example.jetpackcomposepractise.di
 
+import android.content.Context
 import com.example.jetpackcomposepractise.data.remote.APIService
 import com.example.jetpackcomposepractise.data.repository.ProductRepository
 import com.example.jetpackcomposepractise.data.repository.ProductRepositoryImpl
+import com.example.jetpackcomposepractise.util.NetworkConnectivityHelper
 import com.google.gson.GsonBuilder
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -39,9 +42,16 @@ object AppModule {
         return retrofit.create(APIService::class.java)
     }
 
+
     @Provides
     @Singleton
-    fun provideProductRepository(apiService: APIService): ProductRepository {
-        return ProductRepositoryImpl(apiService)
+    fun provideNetworkConnectivityHelper(@ApplicationContext context: Context): NetworkConnectivityHelper {
+        return NetworkConnectivityHelper(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideProductRepository(apiService: APIService,networkConnectivityHelper: NetworkConnectivityHelper): ProductRepository {
+        return ProductRepositoryImpl(apiService, networkConnectivityHelper)
     }
 }
