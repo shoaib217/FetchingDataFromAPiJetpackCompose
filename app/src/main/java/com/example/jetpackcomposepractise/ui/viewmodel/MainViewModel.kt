@@ -27,6 +27,8 @@ class MainViewModel @Inject constructor(
     val categoryList: StateFlow<ArrayList<String>?> = _categoryList
     private var categoryDeviceList: List<Product>? = null
 
+    val isRefreshing = MutableStateFlow(false)
+
     init {
         getDevices()
     }
@@ -36,9 +38,12 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val responseData = productRepository.getProducts()
+                delay(500)
                 when (responseData) {
                     is NetworkResponse.Error -> {
                         _devices.emit(UiState.Error(responseData.message))
+                        isRefreshing.value = false
+
                     }
 
                     is NetworkResponse.Success -> {
@@ -48,7 +53,7 @@ class MainViewModel @Inject constructor(
                             responseData.productList.groupBy { it.category }.keys.toCollection(
                                 arrayListOf("All")
                             )
-                        delay(300)
+                        isRefreshing.value = false
                         _devices.emit(UiState.Success)
                     }
                 }
@@ -56,6 +61,8 @@ class MainViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e("Exception", e.message ?: "Something went wrong")
                 _devices.emit(UiState.Error("Something went wrong"))
+                isRefreshing.value = false
+
             }
         }
     }
@@ -92,6 +99,11 @@ class MainViewModel @Inject constructor(
             }
         }
 
+    }
+
+    fun onRefresh() {
+        isRefreshing.value = true
+        getDevices()
     }
 }
 

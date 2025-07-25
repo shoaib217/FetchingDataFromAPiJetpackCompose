@@ -48,6 +48,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -99,7 +101,9 @@ class MainActivity : ComponentActivity() {
                 val categoryList by
                 mainViewModel.categoryList.collectAsState()
 
-                ProductRoot(devices, deviceList, categoryList, object : ClickActions {
+                val isRefreshing by mainViewModel.isRefreshing.collectAsState()
+
+                ProductRoot(devices, deviceList, categoryList, isRefreshing, object : ClickActions {
                     override fun filterProductByCategory(category: String) {
                         mainViewModel.filterProductByCategory(category)
                     }
@@ -110,6 +114,10 @@ class MainActivity : ComponentActivity() {
 
                     override fun onDismiss() {
                         this@MainActivity.onDismiss()
+                    }
+
+                    override fun onRefresh() {
+                        mainViewModel.onRefresh()
                     }
                 })
 
@@ -134,6 +142,7 @@ fun ProductRoot(
     devices: UiState,
     deviceList: List<Product>?,
     categoryList: ArrayList<String>?,
+    isRefreshing: Boolean,
     clickActions: ClickActions,
 ) {
     var selectedFilter by remember { mutableStateOf<Filter?>(null) }
@@ -196,16 +205,21 @@ fun ProductRoot(
             )
         }) { paddingValues ->
         NavHost(
-            modifier = Modifier.padding(paddingValues),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
             navController = navController,
             startDestination = PRODUCT_SCREEN
         ) {
             composable(PRODUCT_SCREEN) {
                 displayMenuIcon = true
                 toolbarName = "Product Info"
-                Column {
+
+                Log.d(TAG, "data $deviceList")
+
+                Column(modifier = Modifier.fillMaxSize()) {
                     SingleSelectFilterChips(
-                        filters = Filter.values(),
+                        filters = Filter.entries.toTypedArray(),
                         selectedFilter,
                         onFilterSelected = {
                             selectedFilter = if (it == selectedFilter) null else it
@@ -215,7 +229,9 @@ fun ProductRoot(
                     ProductScreen(
                         navController, snackBarHostState,
                         devices,
-                        deviceList
+                        deviceList,
+                        clickActions,
+                        isRefreshing = isRefreshing
                     )
 
                 }
@@ -229,6 +245,7 @@ fun ProductRoot(
                     showAlertDialog = !showAlertDialog
                 }
             }
+
             composable(
                 "$DETAIL_SCREEN{id}",
                 arguments = listOf(navArgument("id") { type = NavType.IntType }),
@@ -256,9 +273,9 @@ fun ProductRoot(
 
 
 @Composable
-fun MySnackBar(snackBarHostState: SnackbarHostState, message: String) {
+fun MySnackBar(snackBarHostState: SnackbarHostState, message: String, random: Int) {
     val scope = rememberCoroutineScope()
-    LaunchedEffect("key1") {
+    LaunchedEffect(random) {
         scope.launch {
             val snackBarResult = snackBarHostState
                 .showSnackbar(
@@ -355,32 +372,55 @@ fun ImageSlider(images: List<String>) {
  * product list screen which contains product
  * @param[navController] for navigation between screens
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductScreen(
     navController: NavHostController,
     snackBarHostState: SnackbarHostState,
     result: UiState,
     deviceList: List<Product>?,
+    clickActions: ClickActions,
+    isRefreshing: Boolean
 
     ) {
-    when (result) {
-        is UiState.Loading -> {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                CircularProgressIndicator()
+    val pullToRefreshState = rememberPullToRefreshState()
+
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            clickActions.onRefresh()
+        },
+        modifier = Modifier.fillMaxSize(),
+        state = pullToRefreshState,
+        // You can customize the indicator alignment and content here
+        // pullRefreshIndicator = { PullToRefreshDefaults.Indicator(state = pullToRefreshState, isRefreshing = isRefreshing)}
+    ) {
+        when (result) {
+            is UiState.Loading -> {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    CircularProgressIndicator()
+                }
+                println("Under Loading")
             }
-            println("Under Loading")
-        }
 
-        is UiState.Error -> {
-            MySnackBar(snackBarHostState, result.message)
-        }
+            is UiState.Error -> {
+                Box(
+                    contentAlignment = Alignment.BottomCenter,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    MySnackBar(snackBarHostState, result.message, (0..100).random())
+                }
+            }
 
-        is UiState.Success -> {
-            println("Under Success")
-            ShowDeviceList(navController, deviceList)
+            is UiState.Success -> {
+                println("Under Success")
+                ShowDeviceList(navController, deviceList)
+            }
         }
     }
 }
@@ -516,10 +556,12 @@ interface ClickActions {
     fun filterProductByType(selectedFilter: Filter?)
 
     fun onDismiss()
+
+    fun onRefresh()
 }
 
 
 @Composable
-fun TemplateScreen(){
+fun TemplateScreen() {
 
 }

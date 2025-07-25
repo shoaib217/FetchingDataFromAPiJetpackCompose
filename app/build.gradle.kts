@@ -1,3 +1,4 @@
+
 plugins {
     alias(libs.plugins.android)
     alias(libs.plugins.kotlinAndroid)
@@ -54,6 +55,7 @@ android {
 
 dependencies {
 
+    implementation(libs.androidx.compose.ui.text.google.fonts)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.navigation.compose)
