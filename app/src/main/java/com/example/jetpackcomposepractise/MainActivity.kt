@@ -33,8 +33,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
@@ -43,16 +46,18 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
@@ -67,6 +72,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -86,12 +92,14 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import coil.compose.SubcomposeAsyncImage
+import com.example.jetpackcomposepractise.MainActivity.Companion.CART_SCREEN
 import com.example.jetpackcomposepractise.MainActivity.Companion.DETAIL_SCREEN
+import com.example.jetpackcomposepractise.MainActivity.Companion.FAVORITE_SCREEN
 import com.example.jetpackcomposepractise.MainActivity.Companion.PRODUCT_SCREEN
-import com.example.jetpackcomposepractise.MainActivity.Companion.TAG
 import com.example.jetpackcomposepractise.data.model.Product
 import com.example.jetpackcomposepractise.ui.theme.JetpackComposePractiseTheme
 import com.example.jetpackcomposepractise.ui.viewmodel.MainViewModel
@@ -99,6 +107,8 @@ import com.example.jetpackcomposepractise.ui.viewmodel.UiState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.util.Locale
+
+const val TAG = "MainActivity"
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -144,8 +154,15 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val PRODUCT_SCREEN = "productScreen"
         const val DETAIL_SCREEN = "detailScreen/"
-        val TAG: String = MainActivity::class.java.simpleName
+        const val CART_SCREEN = "cartScreen"
+        const val FAVORITE_SCREEN = "favoriteScreen"
     }
+}
+
+sealed class BottomNavItem(val route: String, val label: String, val icon: ImageVector) {
+    object Home : BottomNavItem(PRODUCT_SCREEN, "Home", Icons.Default.Home)
+    object Cart : BottomNavItem(CART_SCREEN, "Cart", Icons.Default.ShoppingCart)
+    object Favorite : BottomNavItem(FAVORITE_SCREEN, "Favorite", Icons.Default.Favorite)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -157,34 +174,48 @@ fun ProductRoot(
     clickActions: ClickActions,
 ) {
     var selectedFilter by remember { mutableStateOf<Filter?>(null) }
-
+    val navController = rememberNavController()
     val snackBarHostState = remember { SnackbarHostState() }
-    var toolbarName by remember {
-        mutableStateOf("Product Info")
-    }
+
+    val navItems = listOf(BottomNavItem.Home, BottomNavItem.Cart, BottomNavItem.Favorite)
+    var selectedItemIndex by remember { mutableIntStateOf(0) }
+    val backStackEntry by navController.currentBackStackEntryAsState()
+
     var showAlertDialog by remember {
         mutableStateOf(false)
     }
-    val navController = rememberNavController()
+
     var displayMenuAppbar by remember {
         mutableStateOf(false)
     }
-    var displayMenuIcon by remember {
-        mutableStateOf(true)
-    }
+
+    val showBottomBar = backStackEntry?.destination?.route == PRODUCT_SCREEN
+            || backStackEntry?.destination?.route == CART_SCREEN
+            || backStackEntry?.destination?.route == FAVORITE_SCREEN
+
     Scaffold(
         snackbarHost = {
             SnackbarHost(hostState = snackBarHostState)
         },
         topBar = {
             TopAppBar(
-                title = { Text(text = toolbarName) },
+                title = { Text(text = "Product Info") },
                 colors = TopAppBarDefaults.mediumTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.primary,
                 ),
+                navigationIcon = {
+                    if (navController.previousBackStackEntry != null) {
+                        IconButton(onClick = { navController.navigateUp() }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    }
+                },
                 actions = {
-                    AnimatedVisibility(displayMenuIcon) {
+                    AnimatedVisibility(showBottomBar) {
                         IconButton(
                             onClick = {
                                 displayMenuAppbar = !displayMenuAppbar
@@ -218,7 +249,26 @@ fun ProductRoot(
                     }
                 }
             )
-        }) { paddingValues ->
+        },
+        bottomBar = {
+            if (showBottomBar) {
+                BottomBar(
+                    navItems = navItems,
+                    selectedItemIndex = selectedItemIndex,
+                    onItemSelected = { index, route ->
+                        selectedItemIndex = index
+                        navController.navigate(route) {
+                            popUpTo(navController.graph.startDestinationId) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
+            }
+        }
+    ) { paddingValues ->
         NavHost(
             modifier = Modifier
                 .fillMaxSize()
@@ -227,11 +277,6 @@ fun ProductRoot(
             startDestination = PRODUCT_SCREEN
         ) {
             composable(PRODUCT_SCREEN) {
-                displayMenuIcon = true
-                toolbarName = "Product Info"
-
-                Log.d(TAG, "data $deviceList")
-
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -275,18 +320,33 @@ fun ProductRoot(
                     )
                 }
             ) {
-                displayMenuIcon = false
                 val selectedProduct = deviceList?.firstOrNull { product ->
                     product.id == it.arguments?.getInt("id")
                 }
-                toolbarName = selectedProduct?.title ?: "Product Info"
                 selectedProduct?.let { product ->
                     ProductDetailScreen(
                         product
                     )
                 }
             }
+            composable(CART_SCREEN) {
+                PlaceholderScreen(screenName = "Cart")
+            }
+            composable(FAVORITE_SCREEN) {
+                PlaceholderScreen(screenName = "Favorite")
+            }
         }
+    }
+}
+
+
+@Composable
+fun PlaceholderScreen(screenName: String) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = "$screenName Screen Content", style = MaterialTheme.typography.headlineMedium)
     }
 }
 
@@ -488,7 +548,10 @@ fun ProductDetailScreen(
             }
         }
 
-        Divider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        HorizontalDivider(
+            thickness = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
 
         // --- Detailed Information Section ---
         Column(modifier = Modifier.padding(all = 16.dp)) {
@@ -563,8 +626,9 @@ fun ImageSlider(images: List<String>, modifier: Modifier = Modifier) {
                     .aspectRatio(1f) // Maintain aspect ratio, adjust as needed e.g. 16/9f
                     .padding(horizontal = 4.dp), // Some spacing between images
                 contentScale = ContentScale.Crop,
-                imageLoader = MyApplication.imageLoader, // Assuming global instance
-                loading = { /* ... */ }
+                loading = {
+                    /* ... */
+                }
             )
         }
     }
@@ -666,7 +730,6 @@ fun DeviceCard(product: Product, navController: NavHostController) {
                     .clip(RoundedCornerShape(8.dp)),
                 alignment = Alignment.Center,
                 contentScale = ContentScale.Crop, // Crop usually works well for fixed height images
-                imageLoader = MyApplication.imageLoader, // Assuming this is a shared, configured Coil instance
                 loading = {
                     Box(
                         contentAlignment = Alignment.Center,
@@ -803,4 +866,42 @@ interface ClickActions {
 
     fun onDismiss()
 
+}
+
+@Composable
+fun BottomBar(
+    navItems: List<BottomNavItem>,
+    selectedItemIndex: Int,
+    onItemSelected: (Int, String) -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(32.dp))
+                .background(Color.White.copy(alpha = 0.2f))
+        ) {
+            NavigationBar(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = Color.Transparent,
+                tonalElevation = 0.dp
+            ) {
+                navItems.forEachIndexed { index, item ->
+                    NavigationBarItem(
+                        selected = selectedItemIndex == index,
+                        onClick = { onItemSelected(index, item.route) },
+                        icon = { Icon(item.icon, contentDescription = item.label) },
+                        label = { Text(text = item.label) }
+                    )
+                }
+            }
+        }
+    }
 }
