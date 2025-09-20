@@ -9,14 +9,21 @@ import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -27,18 +34,26 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -48,8 +63,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -61,11 +74,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -82,6 +98,7 @@ import com.example.jetpackcomposepractise.ui.viewmodel.MainViewModel
 import com.example.jetpackcomposepractise.ui.viewmodel.UiState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -101,9 +118,8 @@ class MainActivity : ComponentActivity() {
                 val categoryList by
                 mainViewModel.categoryList.collectAsState()
 
-                val isRefreshing by mainViewModel.isRefreshing.collectAsState()
 
-                ProductRoot(devices, deviceList, categoryList, isRefreshing, object : ClickActions {
+                ProductRoot(devices, deviceList, categoryList, object : ClickActions {
                     override fun filterProductByCategory(category: String) {
                         mainViewModel.filterProductByCategory(category)
                     }
@@ -114,10 +130,6 @@ class MainActivity : ComponentActivity() {
 
                     override fun onDismiss() {
                         this@MainActivity.onDismiss()
-                    }
-
-                    override fun onRefresh() {
-                        mainViewModel.onRefresh()
                     }
                 })
 
@@ -142,7 +154,6 @@ fun ProductRoot(
     devices: UiState,
     deviceList: List<Product>?,
     categoryList: ArrayList<String>?,
-    isRefreshing: Boolean,
     clickActions: ClickActions,
 ) {
     var selectedFilter by remember { mutableStateOf<Filter?>(null) }
@@ -179,7 +190,11 @@ fun ProductRoot(
                                 displayMenuAppbar = !displayMenuAppbar
                             },
                         ) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Menu")
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "Menu",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
                         }
 
                     }
@@ -217,7 +232,11 @@ fun ProductRoot(
 
                 Log.d(TAG, "data $deviceList")
 
-                Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                ) {
                     SingleSelectFilterChips(
                         filters = Filter.entries.toTypedArray(),
                         selectedFilter,
@@ -229,16 +248,16 @@ fun ProductRoot(
                     ProductScreen(
                         navController, snackBarHostState,
                         devices,
-                        deviceList,
-                        clickActions,
-                        isRefreshing = isRefreshing
+                        deviceList
                     )
 
                 }
                 if (showAlertDialog) {
-                    ExitDialog(onDismiss = { showAlertDialog = !showAlertDialog }) {
-                        clickActions.onDismiss()
-                    }
+                    ExitDialog(
+                        onDismiss = { showAlertDialog = !showAlertDialog },
+                        onConfirmation = {
+                            clickActions.onDismiss()
+                        })
                 }
                 BackHandler {
                     Log.d(TAG, "back press under scaffold")
@@ -257,13 +276,13 @@ fun ProductRoot(
                 }
             ) {
                 displayMenuIcon = false
-                val selectedProduct = deviceList?.first { product ->
+                val selectedProduct = deviceList?.firstOrNull { product ->
                     product.id == it.arguments?.getInt("id")
                 }
                 toolbarName = selectedProduct?.title ?: "Product Info"
-                selectedProduct?.let {
+                selectedProduct?.let { product ->
                     ProductDetailScreen(
-                        it
+                        product
                     )
                 }
             }
@@ -298,74 +317,257 @@ fun MySnackBar(snackBarHostState: SnackbarHostState, message: String, random: In
 }
 
 @Composable
-fun ExitDialog(onDismiss: () -> Unit, onYes: () -> Unit) {
+fun ExitDialog(
+    onDismiss: () -> Unit,
+    onConfirmation: () -> Unit, // Renamed from onYes for clarity, standard practice
+    // Optional parameters for more flexibility
+    dialogTitle: String = "Alert", // Consider using stringResource(R.string.alert_dialog_title)
+    dialogText: String = "Are you sure you want to exit?", // Consider using stringResource(R.string.exit_dialog_message)
+    confirmButtonText: String = "Yes", // Consider using stringResource(R.string.yes)
+    dismissButtonText: String = "No", // Consider using stringResource(R.string.no)
+    icon: ImageVector? = null, // Optional: For adding an icon to the dialog
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = onYes) {
-                Text(text = "Yes")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = "No")
+        icon = icon?.let {
+            {
+                Icon(
+                    imageVector = it,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary
+                )
             }
         },
         title = {
             Text(
-                text = "Alert",
-                fontWeight = FontWeight.Bold
+                text = dialogTitle,
+                style = MaterialTheme.typography.headlineSmall, // Use a theme typography style
+                color = MaterialTheme.colorScheme.onSurface // Color for text on the dialog's surface
             )
         },
-        text = { Text(text = "Are you sure you want to exit?") },
+        text = {
+            Text(
+                text = dialogText,
+                style = MaterialTheme.typography.bodyMedium, // Use a theme typography style
+                color = MaterialTheme.colorScheme.onSurfaceVariant // Slightly less prominent color for body
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirmation) {
+                Text(
+                    text = confirmButtonText,
+                    // TextButton text color defaults to MaterialTheme.colorScheme.primary, which is usually correct.
+                    // You could explicitly set it: color = MaterialTheme.colorScheme.primary
+                    fontWeight = FontWeight.SemiBold // Optional: to make action text slightly bolder
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = dismissButtonText
+                    // color = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        // You can also theme the dialog container itself if needed,
+        // though defaults are usually good.
+        // containerColor = MaterialTheme.colorScheme.surface,
+        // titleContentColor = MaterialTheme.colorScheme.onSurface,
+        // textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
+interface ProductDetailActions {
+    fun onAddToCart(productId: Int)
+    fun onToggleFavorite(productId: Int)
+}
 
+@OptIn(ExperimentalMaterial3Api::class) // For Card and other Material 3 components
 @Composable
 fun ProductDetailScreen(
     product: Product,
+    actions: ProductDetailActions? = null, // Optional actions
 ) {
-    Log.d(TAG, "device id -- ${product.id} / ${product.title}")
-    Column(modifier = Modifier.padding(8.dp)) {
-        ImageSlider(product.images)
-        Text(text = "Details", fontSize = 26.sp, fontWeight = FontWeight.Bold)
-        CustomText("Category: ${product.category}")
-        if (!product.brand.isNullOrEmpty() && !product.brand.equals("null", true)) {
-            CustomText("Brand: ${product.brand}")
-        }
-        CustomText("Name: ${product.title}")
-        CustomText("Price: $${product.price}")
-        CustomText("Product Description: ${product.description}")
-        CustomText("Rating: ${product.rating} / 5")
-        CustomText("Remaining: ${product.stock}")
-    }
+    Log.d(TAG, "ProductDetailScreen for: ${product.title}")
 
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()) // Make the whole screen scrollable if content exceeds screen height
+            .padding(bottom = 16.dp) // Padding at the bottom for scrollable content
+    ) {
+        // --- Image Section ---
+        ImageSlider(
+            images = product.images,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(300.dp) // Adjust height as needed
+        )
+
+        // --- Core Info & Actions Section ---
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)) {
+            // Title
+            Text(
+                text = product.title ?: "Product Name",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Price & Rating Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "₹${String.format(Locale.getDefault(), "%.2f", product.price)}",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.Star,
+                        contentDescription = "Rating",
+                        tint = Color(0xFFFFC107), // Gold color for star
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "${product.rating} / 5",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // Stock Information
+            if (product.stock > 0) {
+                Text(
+                    text = "In Stock: ${product.stock} units remaining",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.secondary // Or a success color
+                )
+            } else {
+                Text(
+                    text = "Out of Stock",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // --- Action Buttons ---
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Button(
+                    onClick = { actions?.onAddToCart(product.id) },
+                    modifier = Modifier.weight(1f),
+                    enabled = product.stock > 0 // Disable if out of stock
+                ) {
+                    Icon(Icons.Filled.ShoppingCart, contentDescription = "Add to Cart", modifier = Modifier.size(
+                        ButtonDefaults.IconSize))
+                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                    Text("Add to Cart")
+                }
+                OutlinedIconButton(
+                    // Using OutlinedIconButton for a secondary action look
+                    onClick = { actions?.onToggleFavorite(product.id) },
+                    // border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline) // Default outline
+                ) {
+                    Icon(Icons.Filled.FavoriteBorder, contentDescription = "Favorite", tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+
+        Divider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+        // --- Detailed Information Section ---
+        Column(modifier = Modifier.padding(all = 16.dp)) {
+            Text(
+                text = "Product Details",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            DetailItem("Category", product.category)
+
+            if (!product.brand.isNullOrEmpty() && !product.brand.equals("null", ignoreCase = true)) {
+                DetailItem("Brand", product.brand)
+            }
+
+            // Description - making it expandable or more prominent
+            Text(
+                text = "Description",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 16.dp, bottom = 6.dp)
+            )
+            Text(
+                text = product.description ?: "No description available.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = MaterialTheme.typography.bodyMedium.fontSize * 1.5 // Better line spacing for readability
+            )
+        }
+    }
 }
 
-@Composable
-fun ImageSlider(images: List<String>) {
-    LazyRow() {
-        items(images) { url ->
-            SubcomposeAsyncImage(
-                model = url, contentDescription = "", modifier = Modifier
-                    .padding(8.dp)
-                    .size(350.dp, 250.dp),
-                alignment = Alignment.Center,
-                contentScale = ContentScale.FillWidth,
-                imageLoader = MyApplication.imageLoader,
-                loading = {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                })
 
+
+@Composable
+private fun DetailItem(label: String, value: String?) {
+    if (!value.isNullOrBlank()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Text(
+                text = "$label:",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(0.4f) // Adjust weight as needed
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(0.6f)
+            )
         }
     }
+}
 
+// Ensure your ImageSlider is adapted to take a Modifier if it wasn't already
+@Composable
+fun ImageSlider(images: List<String>, modifier: Modifier = Modifier) {
+    LazyRow(modifier = modifier) { // Apply modifier here
+        items(images) { url ->
+            SubcomposeAsyncImage(
+                model = url,
+                contentDescription = "Product Image",
+                modifier = Modifier
+                    .fillParentMaxHeight() // Fill the height provided by the parent (e.g., 300.dp from Column)
+                    .aspectRatio(1f) // Maintain aspect ratio, adjust as needed e.g. 16/9f
+                    .padding(horizontal = 4.dp), // Some spacing between images
+                contentScale = ContentScale.Crop,
+                imageLoader = MyApplication.imageLoader, // Assuming global instance
+                loading = { /* ... */ }
+            )
+        }
+    }
 }
 
 /**
@@ -379,48 +581,32 @@ fun ProductScreen(
     snackBarHostState: SnackbarHostState,
     result: UiState,
     deviceList: List<Product>?,
-    clickActions: ClickActions,
-    isRefreshing: Boolean
-
-    ) {
-    val pullToRefreshState = rememberPullToRefreshState()
-
-    PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = {
-            clickActions.onRefresh()
-        },
-        modifier = Modifier.fillMaxSize(),
-        state = pullToRefreshState,
-        // You can customize the indicator alignment and content here
-        // pullRefreshIndicator = { PullToRefreshDefaults.Indicator(state = pullToRefreshState, isRefreshing = isRefreshing)}
-    ) {
-        when (result) {
-            is UiState.Loading -> {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    CircularProgressIndicator()
-                }
-                println("Under Loading")
+) {
+    when (result) {
+        is UiState.Loading -> {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                CircularProgressIndicator(strokeWidth = 2.dp)
             }
+            println("Under Loading")
+        }
 
-            is UiState.Error -> {
-                Box(
-                    contentAlignment = Alignment.BottomCenter,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    MySnackBar(snackBarHostState, result.message, (0..100).random())
-                }
+        is UiState.Error -> {
+            Box(
+                contentAlignment = Alignment.BottomCenter,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                MySnackBar(snackBarHostState, result.message, (0..100).random())
             }
+        }
 
-            is UiState.Success -> {
-                println("Under Success")
-                ShowDeviceList(navController, deviceList)
-            }
+        is UiState.Success -> {
+            println("Under Success")
+            ShowDeviceList(navController, deviceList)
         }
     }
 }
@@ -434,7 +620,9 @@ fun ShowDeviceList(
 
     LazyVerticalGrid(columns = GridCells.Fixed(2)) {
         deviceList?.let { prod ->
-            items(prod) { product ->
+            items(prod, key = { product ->
+                product.id
+            }) { product ->
                 DeviceCard(product, navController)
             }
         }
@@ -443,49 +631,80 @@ fun ShowDeviceList(
 
 @Composable
 fun DeviceCard(product: Product, navController: NavHostController) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier.padding(12.dp)
+    ElevatedCard(
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 6.dp // Slightly reduced elevation can look cleaner
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        shape = RoundedCornerShape(12.dp), // Consistent corner rounding
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                horizontal = 8.dp,
+                vertical = 6.dp
+            ) // Padding around the card itself in the grid
+            .clickable(
+                onClick = {
+                    navController.navigate(DETAIL_SCREEN + product.id)
+                }
+            )
+            .wrapContentHeight() // Allow card to grow based on content
     ) {
-        ElevatedCard(
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = 6.dp
-            ),
+        // Explicit Column to arrange content within the card
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .size(250.dp, 300.dp)
-                .verticalScroll(rememberScrollState())
-                .clickable(
-                    onClick = {
-                        navController.navigate(MainActivity.DETAIL_SCREEN + product.id)
-                    }
-                ),
+                .padding(12.dp) // Inner padding for the content
         ) {
             SubcomposeAsyncImage(
-                model = product.images[0],
-                contentDescription = "",
+                model = product.images.getOrNull(0),
+                contentDescription = product.title ?: "Product Image", // Accessibility
                 modifier = Modifier
-                    .padding(8.dp)
-                    .size(250.dp, 150.dp)
-                    .clip(RoundedCornerShape(20)),
+                    .fillMaxWidth()
+                    .height(160.dp) // Slightly more height for image
+                    .clip(RoundedCornerShape(8.dp)),
                 alignment = Alignment.Center,
-                contentScale = ContentScale.FillWidth,
+                contentScale = ContentScale.Crop, // Crop usually works well for fixed height images
+                imageLoader = MyApplication.imageLoader, // Assuming this is a shared, configured Coil instance
                 loading = {
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(strokeWidth = 2.dp)
                     }
                 },
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             if (!product.brand.isNullOrEmpty() && !product.brand.equals("null", true)) {
-                CustomText("Brand: ${product.brand}")
+                CustomText(
+                    value = "Brand: ${product.brand}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
             }
+
             if (!product.title.isNullOrEmpty() && !product.title.equals("null", true)) {
-                CustomText("Title: ${product.title}")
+                CustomText(
+                    value = product.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(6.dp))
             }
-            CustomText("Price: $${product.price}")
+
+            CustomText(
+                value = "₹${String.format(Locale.ENGLISH, "%.2f", product.price)}", // Just the price for cleaner look
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
@@ -494,8 +713,24 @@ fun DeviceCard(product: Product, navController: NavHostController) {
  * custom text style
  */
 @Composable
-fun CustomText(value: String) {
-    Text(text = value, fontSize = 18.sp, modifier = Modifier.padding(4.dp))
+fun CustomText(
+    value: String,
+    modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.bodyMedium,
+    color: Color = Color.Unspecified, // Defaults to LocalContentColor if not specified
+    fontWeight: FontWeight? = null,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip,
+) {
+    Text(
+        text = value,
+        modifier = modifier,
+        style = style,
+        color = color,
+        fontWeight = fontWeight,
+        maxLines = maxLines,
+        overflow = overflow
+    )
 }
 
 
@@ -535,12 +770,23 @@ fun SingleSelectFilterChips(
                 FilterChip(
                     modifier = Modifier.padding(horizontal = 8.dp),
                     selected = selectedFilter == filter,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        // ... other colors as needed
+                    ),
                     onClick = {
                         onFilterSelected(filter)
                     },
                     label = { Text(filter.value) },
                     leadingIcon = if (selectedFilter == filter) {
-                        { Icon(imageVector = Icons.Filled.Done, contentDescription = "Selected") }
+                        {
+                            Icon(
+                                imageVector = Icons.Filled.Done,
+                                contentDescription = "Selected",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     } else {
                         null
                     }
@@ -556,12 +802,5 @@ interface ClickActions {
     fun filterProductByType(selectedFilter: Filter?)
 
     fun onDismiss()
-
-    fun onRefresh()
-}
-
-
-@Composable
-fun TemplateScreen() {
 
 }

@@ -47,10 +47,11 @@ class MainViewModel @Inject constructor(
                     }
 
                     is NetworkResponse.Success -> {
-                        _deviceList.value = responseData.productList
-                        categoryDeviceList = responseData.productList
+                        val indianCurrencyConversionList = performRupeesConversion(responseData.productList)
+                        _deviceList.value = indianCurrencyConversionList
+                        categoryDeviceList = indianCurrencyConversionList
                         _categoryList.value =
-                            responseData.productList.groupBy { it.category }.keys.toCollection(
+                            indianCurrencyConversionList.groupBy { it.category }.keys.toCollection(
                                 arrayListOf("All")
                             )
                         isRefreshing.value = false
@@ -67,6 +68,16 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    fun performRupeesConversion(product: List<Product>): List<Product> {
+        return product.map {
+            it.copy(price = it.price.convertToRupees())
+        }
+    }
+
+    fun Double.convertToRupees(): Double {
+        val  conversionRate = 88.09
+        return this * conversionRate
+    }
     fun filterProductByCategory(category: String) {
         viewModelScope.launch {
             _deviceList.value = categoryDeviceList
@@ -99,11 +110,6 @@ class MainViewModel @Inject constructor(
             }
         }
 
-    }
-
-    fun onRefresh() {
-        isRefreshing.value = true
-        getDevices()
     }
 }
 
