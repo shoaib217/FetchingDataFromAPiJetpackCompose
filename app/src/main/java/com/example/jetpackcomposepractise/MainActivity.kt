@@ -1,5 +1,6 @@
 package com.example.jetpackcomposepractise
 
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -58,6 +59,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
@@ -80,7 +82,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
@@ -125,11 +130,12 @@ class MainActivity : ComponentActivity() {
 
                 val devices by mainViewModel.devices.collectAsState()
                 val deviceList by mainViewModel.deviceList.collectAsState()
+                val favoriteDevice by mainViewModel.favoriteDevice.collectAsState()
                 val categoryList by
                 mainViewModel.categoryList.collectAsState()
 
 
-                ProductRoot(devices, deviceList, categoryList, object : ClickActions {
+                ProductRoot(devices, deviceList, categoryList,favoriteDevice, object : ClickActions {
                     override fun filterProductByCategory(category: String) {
                         mainViewModel.filterProductByCategory(category)
                     }
@@ -140,6 +146,14 @@ class MainActivity : ComponentActivity() {
 
                     override fun onDismiss() {
                         this@MainActivity.onDismiss()
+                    }
+
+                    override fun onAddToCart(productId: Int) {
+                        TODO("Not yet implemented")
+                    }
+
+                    override fun onToggleFavorite(productId: Int) {
+                        mainViewModel.markProductAsFavorite(productId)
                     }
                 })
 
@@ -171,6 +185,7 @@ fun ProductRoot(
     devices: UiState,
     deviceList: List<Product>?,
     categoryList: ArrayList<String>?,
+    favoriteDevice: List<Product>?,
     clickActions: ClickActions,
 ) {
     var selectedFilter by remember { mutableStateOf<Filter?>(null) }
@@ -189,6 +204,17 @@ fun ProductRoot(
         mutableStateOf(false)
     }
 
+    when(backStackEntry?.destination?.route) {
+        PRODUCT_SCREEN ->{
+            selectedItemIndex = 0
+        }
+        CART_SCREEN ->{
+            selectedItemIndex = 1
+        }
+        FAVORITE_SCREEN ->{
+            selectedItemIndex = 2
+        }
+    }
     val showBottomBar = backStackEntry?.destination?.route == PRODUCT_SCREEN
             || backStackEntry?.destination?.route == CART_SCREEN
             || backStackEntry?.destination?.route == FAVORITE_SCREEN
@@ -325,7 +351,8 @@ fun ProductRoot(
                 }
                 selectedProduct?.let { product ->
                     ProductDetailScreen(
-                        product
+                        product,
+                        clickActions
                     )
                 }
             }
@@ -333,7 +360,12 @@ fun ProductRoot(
                 PlaceholderScreen(screenName = "Cart")
             }
             composable(FAVORITE_SCREEN) {
-                PlaceholderScreen(screenName = "Favorite")
+                if (favoriteDevice.isNullOrEmpty()) {
+                PlaceholderScreen(screenName = "No Favorite Item...")
+                } else {
+                    ShowDeviceList(navController, favoriteDevice)
+                }
+
             }
         }
     }
@@ -346,7 +378,7 @@ fun PlaceholderScreen(screenName: String) {
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = "$screenName Screen Content", style = MaterialTheme.typography.headlineMedium)
+        Text(text = screenName, style = MaterialTheme.typography.headlineMedium)
     }
 }
 
@@ -438,16 +470,12 @@ fun ExitDialog(
     )
 }
 
-interface ProductDetailActions {
-    fun onAddToCart(productId: Int)
-    fun onToggleFavorite(productId: Int)
-}
 
 @OptIn(ExperimentalMaterial3Api::class) // For Card and other Material 3 components
 @Composable
 fun ProductDetailScreen(
     product: Product,
-    actions: ProductDetailActions? = null, // Optional actions
+    actions: ClickActions, // Optional actions
 ) {
     Log.d(TAG, "ProductDetailScreen for: ${product.title}")
 
@@ -529,7 +557,7 @@ fun ProductDetailScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Button(
-                    onClick = { actions?.onAddToCart(product.id) },
+                    onClick = { actions.onAddToCart(product.id) },
                     modifier = Modifier.weight(1f),
                     enabled = product.stock > 0 // Disable if out of stock
                 ) {
@@ -543,7 +571,11 @@ fun ProductDetailScreen(
                     onClick = { actions?.onToggleFavorite(product.id) },
                     // border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline) // Default outline
                 ) {
-                    Icon(Icons.Filled.FavoriteBorder, contentDescription = "Favorite", tint = MaterialTheme.colorScheme.primary)
+                    if (product.isFavorite) {
+                        Icon(Icons.Filled.Favorite, contentDescription = "Favorite", tint = MaterialTheme.colorScheme.primary)
+                    } else {
+                        Icon(Icons.Filled.FavoriteBorder, contentDescription = "Favorite", tint = MaterialTheme.colorScheme.primary)
+                    }
                 }
             }
         }
@@ -866,41 +898,100 @@ interface ClickActions {
 
     fun onDismiss()
 
+    fun onAddToCart(productId: Int)
+    fun onToggleFavorite(productId: Int)
+
 }
+
 
 @Composable
 fun BottomBar(
     navItems: List<BottomNavItem>,
     selectedItemIndex: Int,
     onItemSelected: (Int, String) -> Unit,
+    modifier: Modifier = Modifier, // Allow passing an external modifier
 ) {
+    // This outer Box handles the overall positioning (floating effect) and padding.
     Box(
-        modifier = Modifier
+        modifier = modifier // Apply external modifier first
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp), // Padding for the floating effect
         contentAlignment = Alignment.BottomCenter
     ) {
+        // --- Blur Modifier Definition ---
+        // This modifier is created once and reused.
+        // It's conditional on the API level.
+        val blurModifier = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            Modifier.graphicsLayer {
+                renderEffect = BlurEffect(
+                    radiusX = 20f,
+                    radiusY = 20f,
+                    edgeTreatment = TileMode.Decal
+                )
+                // Ensure the layer itself is clipped to prevent blur bleeding outside the shape.
+                clip = true
+            }
+        } else {
+            Modifier // Empty modifier for older versions (no blur)
+        }
 
-
+        // --- Blurred Background Surface ---
+        // This Box provides the themed, clipped, and conditionally blurred surface.
+        // Its height matches the standard NavigationBar height.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(32.dp))
-                .background(Color.White.copy(alpha = 0.2f))
+                .clip(RoundedCornerShape(32.dp)) // Defines the shape of the glass
+                .background(
+                    // Use a semantic color from the theme for the glass background.
+                    // Adjust alpha for desired translucency.
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f)
+                )
+                .then(blurModifier) // Apply the blur effect to this background surface
+        )
+        // This Box is intentionally empty; its background IS the visual content that gets blurred.
+        // The blur effect applies to what's visually BEHIND this Box in the UI hierarchy.
+
+        // --- NavigationBar on Top ---
+        // This sits visually on top of the blurred background surface.
+        NavigationBar(
+            modifier = Modifier
+                .fillMaxWidth()
+                // Clip the NavigationBar to the same shape as the background for visual consistency.
+                .clip(RoundedCornerShape(32.dp)),
+            // Container color is transparent to let the blurred background Box show through.
+            containerColor = Color.Transparent,
+            // Tonal elevation is not needed here as the visual effect is achieved by the background Box.
+            tonalElevation = 0.dp
         ) {
-            NavigationBar(
-                modifier = Modifier.fillMaxWidth(),
-                containerColor = Color.Transparent,
-                tonalElevation = 0.dp
-            ) {
-                navItems.forEachIndexed { index, item ->
-                    NavigationBarItem(
-                        selected = selectedItemIndex == index,
-                        onClick = { onItemSelected(index, item.route) },
-                        icon = { Icon(item.icon, contentDescription = item.label) },
-                        label = { Text(text = item.label) }
+            navItems.forEachIndexed { index, item ->
+                val isSelected = selectedItemIndex == index
+                NavigationBarItem(
+                    selected = isSelected,
+                    onClick = { onItemSelected(index, item.route) },
+                    icon = {
+                        Icon(
+                            imageVector = item.icon,
+                            contentDescription = item.label
+                            // Icon tint is handled by NavigationBarItemDefaults based on selection state
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = item.label
+                            // Text color is handled by NavigationBarItemDefaults
+                        )
+                    },
+                    // Use semantic theme colors for selected and unselected states.
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
+                    // alwaysShowLabel = true // Consider if labels should always be visible or only for selected
+                )
             }
         }
     }
