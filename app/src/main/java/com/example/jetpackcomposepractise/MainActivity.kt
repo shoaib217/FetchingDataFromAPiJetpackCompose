@@ -9,6 +9,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -255,7 +257,9 @@ fun ProductRoot(
                         }
 
                     }
-                    AnimatedVisibility(displayMenuAppbar) {
+                    AnimatedVisibility(displayMenuAppbar,
+                        enter = fadeIn(animationSpec = tween(400)),
+                        exit = fadeOut(animationSpec = tween(400))) {
                         DropdownMenu(
                             expanded = displayMenuAppbar,
                             onDismissRequest = {
@@ -300,7 +304,13 @@ fun ProductRoot(
                 .fillMaxSize()
                 .padding(paddingValues),
             navController = navController,
-            startDestination = PRODUCT_SCREEN
+            startDestination = PRODUCT_SCREEN,
+            enterTransition = { fadeIn(animationSpec = tween(500)) },
+            exitTransition = { fadeOut(animationSpec = tween(500)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(500)) },
+            popExitTransition = { fadeOut(animationSpec = tween(500)) }
+
+
         ) {
             composable(PRODUCT_SCREEN) {
                 Column(
@@ -568,7 +578,7 @@ fun ProductDetailScreen(
                 }
                 OutlinedIconButton(
                     // Using OutlinedIconButton for a secondary action look
-                    onClick = { actions?.onToggleFavorite(product.id) },
+                    onClick = { actions.onToggleFavorite(product.id) },
                     // border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline) // Default outline
                 ) {
                     if (product.isFavorite) {
