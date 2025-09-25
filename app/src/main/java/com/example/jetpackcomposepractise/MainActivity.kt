@@ -41,6 +41,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -159,15 +160,19 @@ class MainActivity : ComponentActivity() {
                         this@MainActivity.onDismiss()
                     }
 
-                    override fun onAddToCart(productId: Int) {
+                    override fun onAddQuantityItem(productId: Int) {
                         mainViewModel.addToCart(productId)
                     }
 
                     override fun onToggleFavorite(productId: Int) {
                         mainViewModel.markProductAsFavorite(productId)
                     }
-                    override fun onRemoveFromCart(productId: Int) {
+                    override fun onRemoveQuantityItem(productId: Int) {
                         mainViewModel.removeFromCart(productId)
+                    }
+
+                    override fun onRemoveFromCart(productId: Int) {
+                        mainViewModel.removeItemFromCart(productId)
                     }
                 })
 
@@ -371,31 +376,7 @@ fun ProductRoot(
                 selectedProduct?.let { product ->
                     ProductDetailScreen(
                         product,
-                        object : ClickActions {
-                            override fun filterProductByCategory(category: String) {
-                                clickActions.filterProductByCategory(category)
-                            }
-
-                            override fun filterProductByType(selectedFilter: Filter?) {
-                                clickActions.filterProductByType(selectedFilter)
-                            }
-
-                            override fun onDismiss() {
-                                clickActions.onDismiss()
-                            }
-
-                            override fun onAddToCart(productId: Int) {
-                                clickActions.onAddToCart(productId)
-                            }
-
-                            override fun onToggleFavorite(productId: Int) {
-                                clickActions.onToggleFavorite(productId)
-                            }
-
-                            override fun onRemoveFromCart(productId: Int) {
-                                clickActions.onRemoveFromCart(productId)
-                            }
-                        }
+                        clickActions
                     )
                 }
             }
@@ -495,65 +476,76 @@ fun CartItemCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         shape = RoundedCornerShape(12.dp),
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(16.dp)
         ) {
-            // Product Info
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                SubcomposeAsyncImage(
-                    model = product.images.firstOrNull(),
-                    contentDescription = product.title,
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = product.title ?: "No Title",
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Product Info
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    SubcomposeAsyncImage(
+                        model = product.images.firstOrNull(),
+                        contentDescription = product.title,
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop
                     )
-                    Text(
-                        text = "₹${String.format(Locale.getDefault(), "%.2f", product.price)}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = product.title ?: "No Title",
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "₹${String.format(Locale.getDefault(), "%.2f", product.price)}",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                // Delete Button
+                IconButton(onClick = { actions.onRemoveFromCart(product.id) }) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Remove from cart",
+                        tint = MaterialTheme.colorScheme.error
                     )
                 }
             }
 
-            /*// Remove Button
-            IconButton(onClick = { onRemoveFromCart(product.id) }) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Remove from cart",
-                    tint = MaterialTheme.colorScheme.error
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Quantity controls
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                QuantitySelector(
+                    currentCount = product.cartCount,
+                    onIncrease = { actions.onAddQuantityItem(product.id)},
+                    onDecrease = { actions.onRemoveQuantityItem(product.id)},
+                    maxCount = product.stock,
                 )
-            }*/
-
-            QuantitySelector(
-                currentCount = product.cartCount,
-                onIncrease = { actions.onAddToCart(product.id)},
-                onDecrease = { actions.onRemoveFromCart(product.id)},
-                maxCount = product.stock,
-            )
+                val itemSubtotal = product.price.toDouble() * product.cartCount
+                Text(
+                    text = "Subtotal: ₹${String.format(Locale.getDefault(), "%.2f", itemSubtotal)}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
-
-        val itemSubtotal = product.price.toDouble() * product.cartCount
-        Text(
-            text = "Subtotal: ₹${String.format(Locale.getDefault(), "%.2f", itemSubtotal)}",
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(top = 4.dp, start = 12.dp, bottom = 8.dp)
-        )
     }
 }
 
@@ -740,25 +732,15 @@ fun ProductDetailScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                if (product.cartCount == 0) {
-                    Button(
-                        onClick = { actions.onAddToCart(product.id) },
-                        modifier = Modifier.weight(1f),
-                        enabled = product.stock > 0 // Disable if out of stock
-                    ) {
-                        Icon(Icons.Filled.ShoppingCart, contentDescription = "Add to Cart", modifier = Modifier.size(
-                            ButtonDefaults.IconSize))
-                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                        Text("Add to Cart")
-                    }
-
-                } else {
-                    QuantitySelector(
-                        currentCount = product.cartCount,
-                        onIncrease = { actions.onAddToCart(product.id)},
-                        onDecrease = { actions.onRemoveFromCart(product.id)},
-                        maxCount = product.stock,
-                    )
+                Button(
+                    onClick = { actions.onAddQuantityItem(product.id) },
+                    modifier = Modifier.weight(1f),
+                    enabled = product.stock > 0 // Disable if out of stock
+                ) {
+                    Icon(Icons.Filled.ShoppingCart, contentDescription = "Add to Cart", modifier = Modifier.size(
+                        ButtonDefaults.IconSize))
+                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                    Text("Add to Cart")
                 }
                 OutlinedIconButton(
                     // Using OutlinedIconButton for a secondary action look
@@ -1092,8 +1074,9 @@ interface ClickActions {
 
     fun onDismiss()
 
-    fun onAddToCart(productId: Int)
+    fun onAddQuantityItem(productId: Int)
     fun onToggleFavorite(productId: Int)
+    fun onRemoveQuantityItem(productId: Int)
     fun onRemoveFromCart(productId: Int)
 
 }

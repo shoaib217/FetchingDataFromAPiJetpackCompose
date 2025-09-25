@@ -175,6 +175,20 @@ class MainViewModel @Inject constructor(
         }
         _deviceList.value = updatedList
     }
+
+    fun removeItemFromCart(productId: Int) {
+        val currentList = _deviceList.value ?: return // If list is null, do nothing
+
+        val updatedList = currentList.map { product ->
+            if (product.id == productId) {
+                // Create a new product instance with the toggled favorite status
+                product.copy(cartCount = 0)
+            } else {
+                product // Return the same product instance if it's not the one we're looking for
+            }
+        }
+        _deviceList.value = updatedList
+    }
 }
 
 sealed class UiState {
