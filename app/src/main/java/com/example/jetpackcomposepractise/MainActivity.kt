@@ -1,5 +1,7 @@
 package com.example.jetpackcomposepractise
 
+import android.graphics.RenderEffect
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -11,6 +13,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +29,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -36,6 +40,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -46,6 +51,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -83,13 +89,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -128,12 +140,13 @@ class MainActivity : ComponentActivity() {
 
                 val devices by mainViewModel.devices.collectAsState()
                 val deviceList by mainViewModel.deviceList.collectAsState()
+                val cartItems by mainViewModel.cartItems.collectAsState()
                 val favoriteDevice by mainViewModel.favoriteDevice.collectAsState()
                 val categoryList by
                 mainViewModel.categoryList.collectAsState()
 
 
-                ProductRoot(devices, deviceList, categoryList,favoriteDevice, object : ClickActions {
+                ProductRoot(devices, deviceList, categoryList,favoriteDevice, cartItems,object : ClickActions {
                     override fun filterProductByCategory(category: String) {
                         mainViewModel.filterProductByCategory(category)
                     }
@@ -147,11 +160,14 @@ class MainActivity : ComponentActivity() {
                     }
 
                     override fun onAddToCart(productId: Int) {
-                        TODO("Not yet implemented")
+                        mainViewModel.addToCart(productId)
                     }
 
                     override fun onToggleFavorite(productId: Int) {
                         mainViewModel.markProductAsFavorite(productId)
+                    }
+                    override fun onRemoveFromCart(productId: Int) {
+                        mainViewModel.removeFromCart(productId)
                     }
                 })
 
@@ -184,6 +200,7 @@ fun ProductRoot(
     deviceList: List<Product>?,
     categoryList: ArrayList<String>?,
     favoriteDevice: List<Product>?,
+    cartItems: List<Product>?,
     clickActions: ClickActions,
 ) {
     var selectedFilter by remember { mutableStateOf<Filter?>(null) }
@@ -214,8 +231,6 @@ fun ProductRoot(
         }
     }
     val showBottomBar = backStackEntry?.destination?.route == PRODUCT_SCREEN
-            || backStackEntry?.destination?.route == CART_SCREEN
-            || backStackEntry?.destination?.route == FAVORITE_SCREEN
 
     Scaffold(
         snackbarHost = {
@@ -277,22 +292,20 @@ fun ProductRoot(
             )
         },
         bottomBar = {
-            if (showBottomBar) {
-                BottomBar(
-                    navItems = navItems,
-                    selectedItemIndex = selectedItemIndex,
-                    onItemSelected = { index, route ->
-                        selectedItemIndex = index
-                        navController.navigate(route) {
-                            popUpTo(navController.graph.startDestinationId) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
+            BottomBar(
+                navItems = navItems,
+                selectedItemIndex = selectedItemIndex,
+                onItemSelected = { index, route ->
+                    selectedItemIndex = index
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.startDestinationId) {
+                            saveState = true
                         }
+                        launchSingleTop = true
+                        restoreState = true
                     }
-                )
-            }
+                }
+            )
         }
     ) { paddingValues ->
         NavHost(
@@ -358,12 +371,39 @@ fun ProductRoot(
                 selectedProduct?.let { product ->
                     ProductDetailScreen(
                         product,
-                        clickActions
+                        object : ClickActions {
+                            override fun filterProductByCategory(category: String) {
+                                clickActions.filterProductByCategory(category)
+                            }
+
+                            override fun filterProductByType(selectedFilter: Filter?) {
+                                clickActions.filterProductByType(selectedFilter)
+                            }
+
+                            override fun onDismiss() {
+                                clickActions.onDismiss()
+                            }
+
+                            override fun onAddToCart(productId: Int) {
+                                clickActions.onAddToCart(productId)
+                            }
+
+                            override fun onToggleFavorite(productId: Int) {
+                                clickActions.onToggleFavorite(productId)
+                            }
+
+                            override fun onRemoveFromCart(productId: Int) {
+                                clickActions.onRemoveFromCart(productId)
+                            }
+                        }
                     )
                 }
             }
             composable(CART_SCREEN) {
-                PlaceholderScreen(screenName = "Cart")
+                CartScreen(
+                    cartItems = cartItems,
+                    clickActions
+                )
             }
             composable(FAVORITE_SCREEN) {
                 if (favoriteDevice.isNullOrEmpty()) {
@@ -377,6 +417,145 @@ fun ProductRoot(
     }
 }
 
+@Composable
+fun CartScreen(
+    cartItems: List<Product>?,
+    clickActions: ClickActions,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        if (cartItems.isNullOrEmpty()) {
+            PlaceholderScreen(screenName = "Your Cart is Empty...")
+        } else {
+            // Header
+            Text(
+                text = "Shopping Cart",
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            // Cart Items List
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(cartItems) { product ->
+                    CartItemCard(product, clickActions)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Total Price Card
+            val totalPrice = cartItems.sumOf { it.price.toDouble() * it.cartCount }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Total:", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        text = "₹${String.format(Locale.getDefault(), "%.2f", totalPrice)}",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Checkout Button
+            Button(
+                onClick = { /* Handle checkout logic */ },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(text = "Checkout")
+            }
+        }
+    }
+}
+
+@Composable
+fun CartItemCard(
+    product: Product,
+    actions: ClickActions,
+) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Product Info
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                SubcomposeAsyncImage(
+                    model = product.images.firstOrNull(),
+                    contentDescription = product.title,
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = product.title ?: "No Title",
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "₹${String.format(Locale.getDefault(), "%.2f", product.price)}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            /*// Remove Button
+            IconButton(onClick = { onRemoveFromCart(product.id) }) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Remove from cart",
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }*/
+
+            QuantitySelector(
+                currentCount = product.cartCount,
+                onIncrease = { actions.onAddToCart(product.id)},
+                onDecrease = { actions.onRemoveFromCart(product.id)},
+                maxCount = product.stock,
+            )
+        }
+
+        val itemSubtotal = product.price.toDouble() * product.cartCount
+        Text(
+            text = "Subtotal: ₹${String.format(Locale.getDefault(), "%.2f", itemSubtotal)}",
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(top = 4.dp, start = 12.dp, bottom = 8.dp)
+        )
+    }
+}
 
 @Composable
 fun PlaceholderScreen(screenName: String) {
@@ -559,17 +738,27 @@ fun ProductDetailScreen(
             // --- Action Buttons ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Button(
-                    onClick = { actions.onAddToCart(product.id) },
-                    modifier = Modifier.weight(1f),
-                    enabled = product.stock > 0 // Disable if out of stock
-                ) {
-                    Icon(Icons.Filled.ShoppingCart, contentDescription = "Add to Cart", modifier = Modifier.size(
-                        ButtonDefaults.IconSize))
-                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                    Text("Add to Cart")
+                if (product.cartCount == 0) {
+                    Button(
+                        onClick = { actions.onAddToCart(product.id) },
+                        modifier = Modifier.weight(1f),
+                        enabled = product.stock > 0 // Disable if out of stock
+                    ) {
+                        Icon(Icons.Filled.ShoppingCart, contentDescription = "Add to Cart", modifier = Modifier.size(
+                            ButtonDefaults.IconSize))
+                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                        Text("Add to Cart")
+                    }
+
+                } else {
+                    QuantitySelector(
+                        currentCount = product.cartCount,
+                        onIncrease = { actions.onAddToCart(product.id)},
+                        onDecrease = { actions.onRemoveFromCart(product.id)},
+                        maxCount = product.stock,
+                    )
                 }
                 OutlinedIconButton(
                     // Using OutlinedIconButton for a secondary action look
@@ -905,6 +1094,7 @@ interface ClickActions {
 
     fun onAddToCart(productId: Int)
     fun onToggleFavorite(productId: Int)
+    fun onRemoveFromCart(productId: Int)
 
 }
 
@@ -962,5 +1152,153 @@ fun BottomBar(
                 )
             }
         }
+    }
+}
+
+/**
+ * A preview that demonstrates the BottomBar with the glassmorphism effect.
+ */
+@Preview(showBackground = true)
+@Composable
+fun BottomBarPreview() {
+    val navItems = listOf(BottomNavItem.Home, BottomNavItem.Cart, BottomNavItem.Favorite)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color(0xFF6A1B9A), Color(0xFF1565C0)),
+                    startY = 0f,
+                    endY = Float.POSITIVE_INFINITY,
+                    tileMode = TileMode.Clamp
+                )
+            )
+    ) {
+        BottomBar(
+            navItems = navItems,
+            selectedItemIndex = 0,
+            onItemSelected = { _, _ -> },
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+}
+
+
+@Composable
+fun Modifier.blurEffect(radius: Float): Modifier {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        this.then(
+            Modifier.graphicsLayer {
+                renderEffect = RenderEffect
+                    .createBlurEffect(
+                        radius,
+                        radius,
+                        android.graphics.Shader.TileMode.DECAL
+                    )
+                    .asComposeRenderEffect()
+            }
+        )
+    } else {
+        // Fallback for older Android versions
+        this
+    }
+}
+
+
+/**
+ * A Composable that displays a quantity selector with "+" and "-" buttons
+ * and the current count in the middle, adhering to Material Theme.
+ *
+ * @param currentCount The current quantity to display.
+ * @param onIncrease The callback invoked when the "+" button is clicked.
+ * @param onDecrease The callback invoked when the "-" button is clicked.
+ * @param modifier Optional Modifier for this component.
+ * @param maxCount The maximum allowed count (optional).
+ * @param buttonSize The size of the IconButton.
+ * @param buttonBorderStroke The border stroke for the buttons, defaults to theme's outline.
+ * @param countTextStyle The style for the count text, defaults to theme's bodyLarge.
+ */
+@Composable
+fun QuantitySelector(
+    currentCount: Int,
+    onIncrease: () -> Unit,
+    onDecrease: () -> Unit,
+    modifier: Modifier = Modifier,
+    maxCount: Int? = null,
+    buttonSize: Dp = 36.dp,
+    // Default uses MaterialTheme.colorScheme.outline
+    buttonBorderStroke: BorderStroke = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+    // Default uses MaterialTheme.typography.bodyLarge and MaterialTheme.colorScheme.onSurface (implicitly)
+    countTextStyle: TextStyle = MaterialTheme.typography.bodyLarge.copy(
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurface // Explicitly setting, often same as default
+    )
+) {
+    Row(
+        modifier = modifier.padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Decrease Button
+        OutlinedIconButton(
+            onClick = {
+                onDecrease()
+            },
+            modifier = Modifier.size(buttonSize),
+            shape = MaterialTheme.shapes.small, // Themed shape
+            border = buttonBorderStroke,         // Themed border
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.minus), // Ensure this resource exists
+                // For Material Icon alternative:
+                // imageVector = Icons.Filled.Remove,
+                contentDescription = "Decrease quantity",
+                tint = MaterialTheme.colorScheme.primary // Themed tint for enabled
+            )
+        }
+
+        // Count Text
+        Text(
+            text = currentCount.toString(),
+            style = countTextStyle, // Themed text style
+            modifier = Modifier.padding(horizontal = 8.dp)
+        )
+
+        // Increase Button
+        OutlinedIconButton(
+            onClick = {
+                if (maxCount == null || currentCount < maxCount) {
+                    onIncrease()
+                }
+            },
+            modifier = Modifier.size(buttonSize),
+            shape = MaterialTheme.shapes.small, // Themed shape
+            border = buttonBorderStroke,         // Themed border
+            enabled = maxCount == null || currentCount < maxCount
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Add,
+                contentDescription = "Increase quantity",
+                tint = if (maxCount == null || currentCount < maxCount) {
+                    MaterialTheme.colorScheme.primary // Themed tint for enabled
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f) // Themed tint for disabled
+                }
+            )
+        }
+    }
+}
+
+
+@Preview(showBackground = true, name = "Quantity Selector - Default")
+@Composable
+fun QuantitySelectorPreview() {
+    MaterialTheme {
+        QuantitySelector(
+            currentCount = 1,
+            onIncrease = { },
+            onDecrease = { }
+        )
     }
 }

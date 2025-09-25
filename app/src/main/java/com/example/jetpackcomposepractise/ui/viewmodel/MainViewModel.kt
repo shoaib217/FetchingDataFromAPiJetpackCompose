@@ -36,6 +36,15 @@ class MainViewModel @Inject constructor(
         initialValue = null // Or derive from current _deviceList.value if needed
     )
 
+
+    val cartItems: StateFlow<List<Product>?> = deviceList.map { list ->
+        list?.filter { it.cartCount > 0}
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000), // Or Lazily, Eagerly
+        initialValue = null // Or derive from current _deviceList.value if needed
+    )
+
     private var _categoryList = MutableStateFlow<ArrayList<String>?>(null)
     val categoryList: StateFlow<ArrayList<String>?> = _categoryList
     private var categoryDeviceList: List<Product>? = null
@@ -132,6 +141,34 @@ class MainViewModel @Inject constructor(
             if (product.id == productId) {
                 // Create a new product instance with the toggled favorite status
                 product.copy(isFavorite = !product.isFavorite)
+            } else {
+                product // Return the same product instance if it's not the one we're looking for
+            }
+        }
+        _deviceList.value = updatedList
+    }
+
+    fun addToCart(productId: Int) {
+        val currentList = _deviceList.value ?: return // If list is null, do nothing
+
+        val updatedList = currentList.map { product ->
+            if (product.id == productId) {
+                // Create a new product instance with the toggled favorite status
+                product.copy(cartCount = product.cartCount + 1)
+            } else {
+                product // Return the same product instance if it's not the one we're looking for
+            }
+        }
+        _deviceList.value = updatedList
+    }
+
+    fun removeFromCart(productId: Int) {
+        val currentList = _deviceList.value ?: return // If list is null, do nothing
+
+        val updatedList = currentList.map { product ->
+            if (product.id == productId) {
+                // Create a new product instance with the toggled favorite status
+                product.copy(cartCount = product.cartCount - 1)
             } else {
                 product // Return the same product instance if it's not the one we're looking for
             }

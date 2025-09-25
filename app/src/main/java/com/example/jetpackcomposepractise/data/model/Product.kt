@@ -12,5 +12,6 @@ data class Product(
     val stock: Int,
     val thumbnail: String,
     val title: String?,
-    var isFavorite: Boolean= false
+    var isFavorite: Boolean= false,
+    var cartCount: Int = 0
 )
