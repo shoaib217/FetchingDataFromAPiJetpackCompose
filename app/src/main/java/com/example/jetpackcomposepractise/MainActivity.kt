@@ -139,7 +139,7 @@ class MainActivity : ComponentActivity() {
 
                 // A surface container using the 'background' color from the theme
 
-                val devices by mainViewModel.devices.collectAsState()
+                val uiState by mainViewModel.uiState.collectAsState()
                 val deviceList by mainViewModel.deviceList.collectAsState()
                 val cartItems by mainViewModel.cartItems.collectAsState()
                 val favoriteDevice by mainViewModel.favoriteDevice.collectAsState()
@@ -147,7 +147,7 @@ class MainActivity : ComponentActivity() {
                 mainViewModel.categoryList.collectAsState()
 
 
-                ProductRoot(devices, deviceList, categoryList,favoriteDevice, cartItems,object : ClickActions {
+                ProductRoot(uiState, deviceList, categoryList,favoriteDevice, cartItems,object : ClickActions {
                     override fun filterProductByCategory(category: String) {
                         mainViewModel.filterProductByCategory(category)
                     }
@@ -201,9 +201,9 @@ sealed class BottomNavItem(val route: String, val label: String, val icon: Image
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductRoot(
-    devices: UiState,
+    uiState: UiState,
     deviceList: List<Product>?,
-    categoryList: ArrayList<String>?,
+    categoryList: List<String>?,
     favoriteDevice: List<Product>?,
     cartItems: List<Product>?,
     clickActions: ClickActions,
@@ -342,7 +342,7 @@ fun ProductRoot(
                         })
                     ProductScreen(
                         navController, snackBarHostState,
-                        devices,
+                        uiState,
                         deviceList
                     )
 

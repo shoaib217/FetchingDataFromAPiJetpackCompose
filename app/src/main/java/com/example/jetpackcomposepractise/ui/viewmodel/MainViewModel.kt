@@ -8,48 +8,90 @@ import com.example.jetpackcomposepractise.data.model.NetworkResponse
 import com.example.jetpackcomposepractise.data.model.Product
 import com.example.jetpackcomposepractise.data.repository.ProductRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import jakarta.inject.Inject
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val productRepository: ProductRepository,
 ) : ViewModel() {
 
-    private var _devices = MutableStateFlow<UiState>(UiState.Loading)
-    val devices: StateFlow<UiState> = _devices
-    private var _deviceList = MutableStateFlow<List<Product>?>(null)
-    val deviceList: StateFlow<List<Product>?> = _deviceList
+    // A private mutable state flow to hold the master list of all products
+    // This is the single source of truth that will never be filtered or sorted directly.
+    private val _products = MutableStateFlow<List<Product>?>(null)
 
-    // Correct way to derive favoriteDevice StateFlow
-    val favoriteDevice: StateFlow<List<Product>?> = deviceList.map { list ->
+    // State flows to hold the current filter and sort selections
+    private val _currentFilter = MutableStateFlow<Filter?>(null)
+    private val _currentCategory = MutableStateFlow<String?>("All")
+
+    // Public state flow for the UI state (loading, success, error)
+    private var _uiState = MutableStateFlow<UiState>(UiState.Loading)
+    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+
+    // Public state flow for the list of categories, derived from the master product list
+    val categoryList: StateFlow<List<String>?> = _products.map { products ->
+        products?.groupBy { it.category }?.keys?.toMutableList()?.apply {
+            add(0, "All")
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
+
+    // The main public state flow for the UI.
+    // It combines the master product list with the current filter and category selections.
+    // Every time a selection changes, this flow will automatically emit an updated list.
+    val deviceList: StateFlow<List<Product>?> = combine(
+        _products,
+        _currentCategory,
+        _currentFilter
+    ) { products, category, filter ->
+        products?.let { list ->
+            // 1. Apply category filter
+            val filteredList = if (category.equals("All", true)) {
+                list
+            } else {
+                list.filter { it.category == category }
+            }
+
+            // 2. Apply sort filter
+            when (filter) {
+                Filter.PRICE -> filteredList.sortedByDescending { it.price }
+                Filter.RATING -> filteredList.sortedByDescending { it.rating }
+                Filter.STOCK -> filteredList.sortedByDescending { it.stock }
+                null -> filteredList
+            }
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
+
+    // Derived StateFlows for favorite and cart items, based on the master product list
+    val favoriteDevice: StateFlow<List<Product>?> = _products.map { list ->
         list?.filter { it.isFavorite }
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000), // Or Lazily, Eagerly
-        initialValue = null // Or derive from current _deviceList.value if needed
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
     )
 
-
-    val cartItems: StateFlow<List<Product>?> = deviceList.map { list ->
-        list?.filter { it.cartCount > 0}
+    val cartItems: StateFlow<List<Product>?> = _products.map { list ->
+        list?.filter { it.cartCount > 0 }
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000), // Or Lazily, Eagerly
-        initialValue = null // Or derive from current _deviceList.value if needed
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
     )
-
-    private var _categoryList = MutableStateFlow<ArrayList<String>?>(null)
-    val categoryList: StateFlow<ArrayList<String>?> = _categoryList
-    private var categoryDeviceList: List<Product>? = null
-
-    val isRefreshing = MutableStateFlow(false)
 
     init {
         getDevices()
@@ -58,136 +100,94 @@ class MainViewModel @Inject constructor(
     private fun getDevices() {
         Log.d("viemodel", "getDevices")
         viewModelScope.launch {
+            _uiState.value = UiState.Loading
             try {
-                val responseData = productRepository.getProducts()
-                delay(500)
-                when (responseData) {
+                when (val responseData = productRepository.getProducts()) {
                     is NetworkResponse.Error -> {
-                        _devices.emit(UiState.Error(responseData.message))
-                        isRefreshing.value = false
-
+                        _uiState.value = UiState.Error(responseData.message)
                     }
-
                     is NetworkResponse.Success -> {
-                        val indianCurrencyConversionList = performRupeesConversion(responseData.productList)
-                        _deviceList.value = indianCurrencyConversionList
-                        categoryDeviceList = indianCurrencyConversionList
-                        _categoryList.value =
-                            indianCurrencyConversionList.groupBy { it.category }.keys.toCollection(
-                                arrayListOf("All")
-                            )
-                        isRefreshing.value = false
-                        _devices.emit(UiState.Success)
+                        // The master list is updated only once on a successful API call.
+                        _products.value = performRupeesConversion(responseData.productList)
+                        _uiState.value = UiState.Success
                     }
                 }
-
             } catch (e: Exception) {
                 Log.e("Exception", e.message ?: "Something went wrong")
-                _devices.emit(UiState.Error("Something went wrong"))
-                isRefreshing.value = false
-
+                _uiState.value = UiState.Error("Something went wrong")
             }
         }
     }
 
-    fun performRupeesConversion(product: List<Product>): List<Product> {
+    private fun performRupeesConversion(product: List<Product>): List<Product> {
         return product.map {
             it.copy(price = it.price.convertToRupees())
         }
     }
 
-    fun Double.convertToRupees(): Double {
-        val  conversionRate = 88.09
+    private fun Double.convertToRupees(): Double {
+        val conversionRate = 88.09
         return this * conversionRate
     }
-    fun filterProductByCategory(category: String) {
-        viewModelScope.launch {
-            _deviceList.value = categoryDeviceList
-            _deviceList.emit(
-                if (category.equals("all", true)) categoryDeviceList else
-                    deviceList.value?.filter { it.category == category }
-            )
 
-        }
+    // Now, these functions simply update the state of the filter/category.
+    // The `deviceList` flow automatically handles the re-filtering and re-sorting.
+    fun filterProductByCategory(category: String) {
+        _currentCategory.value = category
     }
 
     fun setFilterData(filter: Filter?) {
-        when (filter) {
-            Filter.PRICE -> {
-                _deviceList.value = _deviceList.value?.sortedByDescending { it.price }
-            }
-
-            Filter.RATING -> {
-                _deviceList.value =
-                    _deviceList.value?.sortedByDescending { it.rating }
-            }
-
-            Filter.STOCK -> {
-                _deviceList.value =
-                    _deviceList.value?.sortedByDescending { it.stock }
-            }
-
-            null -> {
-                _deviceList.value = categoryDeviceList
-            }
-        }
-
+        _currentFilter.value = filter
     }
 
+    // These functions now update the master list (`_products`).
+    // All other derived flows automatically react to these changes.
     fun markProductAsFavorite(productId: Int) {
-        val currentList = _deviceList.value ?: return // If list is null, do nothing
-
+        val currentList = _products.value ?: return
         val updatedList = currentList.map { product ->
             if (product.id == productId) {
-                // Create a new product instance with the toggled favorite status
                 product.copy(isFavorite = !product.isFavorite)
             } else {
-                product // Return the same product instance if it's not the one we're looking for
+                product
             }
         }
-        _deviceList.value = updatedList
+        _products.value = updatedList
     }
 
     fun addToCart(productId: Int) {
-        val currentList = _deviceList.value ?: return // If list is null, do nothing
-
+        val currentList = _products.value ?: return
         val updatedList = currentList.map { product ->
             if (product.id == productId) {
-                // Create a new product instance with the toggled favorite status
                 product.copy(cartCount = product.cartCount + 1)
             } else {
-                product // Return the same product instance if it's not the one we're looking for
+                product
             }
         }
-        _deviceList.value = updatedList
+        _products.value = updatedList
     }
 
     fun removeFromCart(productId: Int) {
-        val currentList = _deviceList.value ?: return // If list is null, do nothing
-
+        val currentList = _products.value ?: return
         val updatedList = currentList.map { product ->
             if (product.id == productId) {
-                // Create a new product instance with the toggled favorite status
                 product.copy(cartCount = product.cartCount - 1)
             } else {
-                product // Return the same product instance if it's not the one we're looking for
+                product
             }
         }
-        _deviceList.value = updatedList
+        _products.value = updatedList
     }
 
     fun removeItemFromCart(productId: Int) {
-        val currentList = _deviceList.value ?: return // If list is null, do nothing
-
+        val currentList = _products.value ?: return
         val updatedList = currentList.map { product ->
             if (product.id == productId) {
-                // Create a new product instance with the toggled favorite status
                 product.copy(cartCount = 0)
             } else {
-                product // Return the same product instance if it's not the one we're looking for
+                product
             }
         }
-        _deviceList.value = updatedList
+        _products.value = updatedList
     }
 }
 
