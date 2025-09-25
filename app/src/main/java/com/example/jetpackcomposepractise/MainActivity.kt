@@ -1,6 +1,5 @@
 package com.example.jetpackcomposepractise
 
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -84,10 +83,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TileMode
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
@@ -371,7 +367,7 @@ fun ProductRoot(
             }
             composable(FAVORITE_SCREEN) {
                 if (favoriteDevice.isNullOrEmpty()) {
-                PlaceholderScreen(screenName = "No Favorite Item...")
+                    PlaceholderScreen(screenName = "No Favorite Item...")
                 } else {
                     ShowDeviceList(navController, favoriteDevice)
                 }
@@ -488,142 +484,152 @@ fun ProductDetailScreen(
     actions: ClickActions, // Optional actions
 ) {
     Log.d(TAG, "ProductDetailScreen for: ${product.title}")
+    val navItems = listOf(BottomNavItem.Home, BottomNavItem.Cart, BottomNavItem.Favorite)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()) // Make the whole screen scrollable if content exceeds screen height
-            .padding(bottom = 16.dp) // Padding at the bottom for scrollable content
-    ) {
-        // --- Image Section ---
-        ImageSlider(
-            images = product.images,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(300.dp) // Adjust height as needed
+    Box {
+        BottomBar(
+            navItems = navItems,
+            selectedItemIndex = 0,
+            onItemSelected = { _, _ -> },
+            modifier = Modifier.align(Alignment.BottomCenter)
         )
-
-        // --- Core Info & Actions Section ---
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)) {
-            // Title
-            Text(
-                text = product.title ?: "Product Name",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()) // Make the whole screen scrollable if content exceeds screen height
+                .padding(bottom = 16.dp) // Padding at the bottom for scrollable content
+        ) {
+            // --- Image Section ---
+            ImageSlider(
+                images = product.images,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(300.dp) // Adjust height as needed
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Price & Rating Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+            // --- Core Info & Actions Section ---
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)) {
+                // Title
                 Text(
-                    text = "₹${String.format(Locale.getDefault(), "%.2f", product.price)}",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
+                    text = product.title ?: "Product Name",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.Star,
-                        contentDescription = "Rating",
-                        tint = Color(0xFFFFC107), // Gold color for star
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Price & Rating Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Text(
-                        text = "${product.rating} / 5",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "₹${String.format(Locale.getDefault(), "%.2f", product.price)}",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = "Rating",
+                            tint = Color(0xFFFFC107), // Gold color for star
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${product.rating} / 5",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // Stock Information
+                if (product.stock > 0) {
+                    Text(
+                        text = "In Stock: ${product.stock} units remaining",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary // Or a success color
+                    )
+                } else {
+                    Text(
+                        text = "Out of Stock",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
-            }
 
-            // Stock Information
-            if (product.stock > 0) {
-                Text(
-                    text = "In Stock: ${product.stock} units remaining",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.secondary // Or a success color
-                )
-            } else {
-                Text(
-                    text = "Out of Stock",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
+                Spacer(modifier = Modifier.height(24.dp))
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // --- Action Buttons ---
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = { actions.onAddToCart(product.id) },
-                    modifier = Modifier.weight(1f),
-                    enabled = product.stock > 0 // Disable if out of stock
+                // --- Action Buttons ---
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(Icons.Filled.ShoppingCart, contentDescription = "Add to Cart", modifier = Modifier.size(
-                        ButtonDefaults.IconSize))
-                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                    Text("Add to Cart")
-                }
-                OutlinedIconButton(
-                    // Using OutlinedIconButton for a secondary action look
-                    onClick = { actions.onToggleFavorite(product.id) },
-                    // border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline) // Default outline
-                ) {
-                    if (product.isFavorite) {
-                        Icon(Icons.Filled.Favorite, contentDescription = "Favorite", tint = MaterialTheme.colorScheme.primary)
-                    } else {
-                        Icon(Icons.Filled.FavoriteBorder, contentDescription = "Favorite", tint = MaterialTheme.colorScheme.primary)
+                    Button(
+                        onClick = { actions.onAddToCart(product.id) },
+                        modifier = Modifier.weight(1f),
+                        enabled = product.stock > 0 // Disable if out of stock
+                    ) {
+                        Icon(Icons.Filled.ShoppingCart, contentDescription = "Add to Cart", modifier = Modifier.size(
+                            ButtonDefaults.IconSize))
+                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                        Text("Add to Cart")
+                    }
+                    OutlinedIconButton(
+                        // Using OutlinedIconButton for a secondary action look
+                        onClick = { actions.onToggleFavorite(product.id) },
+                        // border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline) // Default outline
+                    ) {
+                        if (product.isFavorite) {
+                            Icon(Icons.Filled.Favorite, contentDescription = "Favorite", tint = MaterialTheme.colorScheme.primary)
+                        } else {
+                            Icon(Icons.Filled.FavoriteBorder, contentDescription = "Favorite", tint = MaterialTheme.colorScheme.primary)
+                        }
                     }
                 }
             }
-        }
 
-        HorizontalDivider(
-            thickness = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-        )
-
-        // --- Detailed Information Section ---
-        Column(modifier = Modifier.padding(all = 16.dp)) {
-            Text(
-                text = "Product Details",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = 12.dp)
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             )
 
-            DetailItem("Category", product.category)
+            // --- Detailed Information Section ---
+            Column(modifier = Modifier.padding(all = 16.dp)) {
+                Text(
+                    text = "Product Details",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
 
-            if (!product.brand.isNullOrEmpty() && !product.brand.equals("null", ignoreCase = true)) {
-                DetailItem("Brand", product.brand)
+                DetailItem("Category", product.category)
+
+                if (!product.brand.isNullOrEmpty() && !product.brand.equals("null", ignoreCase = true)) {
+                    DetailItem("Brand", product.brand)
+                }
+
+                // Description - making it expandable or more prominent
+                Text(
+                    text = "Description",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 16.dp, bottom = 6.dp)
+                )
+                Text(
+                    text = product.description ?: "No description available.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = MaterialTheme.typography.bodyMedium.fontSize * 1.5 // Better line spacing for readability
+                )
             }
-
-            // Description - making it expandable or more prominent
-            Text(
-                text = "Description",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 16.dp, bottom = 6.dp)
-            )
-            Text(
-                text = product.description ?: "No description available.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = MaterialTheme.typography.bodyMedium.fontSize * 1.5 // Better line spacing for readability
-            )
         }
+
     }
 }
 
@@ -667,7 +673,7 @@ fun ImageSlider(images: List<String>, modifier: Modifier = Modifier) {
                     .fillParentMaxHeight() // Fill the height provided by the parent (e.g., 300.dp from Column)
                     .aspectRatio(1f) // Maintain aspect ratio, adjust as needed e.g. 16/9f
                     .padding(horizontal = 4.dp), // Some spacing between images
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.Crop, // Crop usually works well for fixed height images
                 loading = {
                     /* ... */
                 }
@@ -913,65 +919,32 @@ interface ClickActions {
 
 }
 
-
 @Composable
 fun BottomBar(
     navItems: List<BottomNavItem>,
     selectedItemIndex: Int,
     onItemSelected: (Int, String) -> Unit,
-    modifier: Modifier = Modifier, // Allow passing an external modifier
+    modifier: Modifier = Modifier,
 ) {
-    // This outer Box handles the overall positioning (floating effect) and padding.
     Box(
-        modifier = modifier // Apply external modifier first
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp), // Padding for the floating effect
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
-        // --- Blur Modifier Definition ---
-        // This modifier is created once and reused.
-        // It's conditional on the API level.
-        val blurModifier = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            Modifier.graphicsLayer {
-                renderEffect = BlurEffect(
-                    radiusX = 20f,
-                    radiusY = 20f,
-                    edgeTreatment = TileMode.Decal
-                )
-                // Ensure the layer itself is clipped to prevent blur bleeding outside the shape.
-                clip = true
-            }
-        } else {
-            Modifier // Empty modifier for older versions (no blur)
-        }
-
-        // --- Blurred Background Surface ---
-        // This Box provides the themed, clipped, and conditionally blurred surface.
-        // Its height matches the standard NavigationBar height.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(32.dp)) // Defines the shape of the glass
                 .background(
-                    // Use a semantic color from the theme for the glass background.
-                    // Adjust alpha for desired translucency.
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f)
+                    color = MaterialTheme.colorScheme.surfaceVariant
                 )
-                .then(blurModifier) // Apply the blur effect to this background surface
         )
-        // This Box is intentionally empty; its background IS the visual content that gets blurred.
-        // The blur effect applies to what's visually BEHIND this Box in the UI hierarchy.
-
-        // --- NavigationBar on Top ---
-        // This sits visually on top of the blurred background surface.
         NavigationBar(
             modifier = Modifier
                 .fillMaxWidth()
-                // Clip the NavigationBar to the same shape as the background for visual consistency.
                 .clip(RoundedCornerShape(32.dp)),
-            // Container color is transparent to let the blurred background Box show through.
             containerColor = Color.Transparent,
-            // Tonal elevation is not needed here as the visual effect is achieved by the background Box.
             tonalElevation = 0.dp
         ) {
             navItems.forEachIndexed { index, item ->
@@ -983,16 +956,13 @@ fun BottomBar(
                         Icon(
                             imageVector = item.icon,
                             contentDescription = item.label
-                            // Icon tint is handled by NavigationBarItemDefaults based on selection state
                         )
                     },
                     label = {
                         Text(
                             text = item.label
-                            // Text color is handled by NavigationBarItemDefaults
                         )
                     },
-                    // Use semantic theme colors for selected and unselected states.
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -1000,7 +970,6 @@ fun BottomBar(
                         unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    // alwaysShowLabel = true // Consider if labels should always be visible or only for selected
                 )
             }
         }
