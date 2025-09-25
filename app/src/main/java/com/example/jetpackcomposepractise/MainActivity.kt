@@ -147,34 +147,41 @@ class MainActivity : ComponentActivity() {
                 mainViewModel.categoryList.collectAsState()
 
 
-                ProductRoot(uiState, deviceList, categoryList,favoriteDevice, cartItems,object : ClickActions {
-                    override fun filterProductByCategory(category: String) {
-                        mainViewModel.filterProductByCategory(category)
-                    }
+                ProductRoot(
+                    uiState,
+                    deviceList,
+                    categoryList,
+                    favoriteDevice,
+                    cartItems,
+                    object : ClickActions {
+                        override fun filterProductByCategory(category: String) {
+                            mainViewModel.filterProductByCategory(category)
+                        }
 
-                    override fun filterProductByType(selectedFilter: Filter?) {
-                        mainViewModel.setFilterData(selectedFilter)
-                    }
+                        override fun filterProductByType(selectedFilter: Filter?) {
+                            mainViewModel.setFilterData(selectedFilter)
+                        }
 
-                    override fun onDismiss() {
-                        this@MainActivity.onDismiss()
-                    }
+                        override fun onDismiss() {
+                            this@MainActivity.onDismiss()
+                        }
 
-                    override fun onAddQuantityItem(productId: Int) {
-                        mainViewModel.addToCart(productId)
-                    }
+                        override fun onAddQuantityItem(productId: Int) {
+                            mainViewModel.addToCart(productId)
+                        }
 
-                    override fun onToggleFavorite(productId: Int) {
-                        mainViewModel.markProductAsFavorite(productId)
-                    }
-                    override fun onRemoveQuantityItem(productId: Int) {
-                        mainViewModel.removeFromCart(productId)
-                    }
+                        override fun onToggleFavorite(productId: Int) {
+                            mainViewModel.markProductAsFavorite(productId)
+                        }
 
-                    override fun onRemoveFromCart(productId: Int) {
-                        mainViewModel.removeItemFromCart(productId)
-                    }
-                })
+                        override fun onRemoveQuantityItem(productId: Int) {
+                            mainViewModel.removeFromCart(productId)
+                        }
+
+                        override fun onRemoveFromCart(productId: Int) {
+                            mainViewModel.removeItemFromCart(productId)
+                        }
+                    })
 
             }
         }
@@ -224,14 +231,16 @@ fun ProductRoot(
         mutableStateOf(false)
     }
 
-    when(backStackEntry?.destination?.route) {
-        PRODUCT_SCREEN ->{
+    when (backStackEntry?.destination?.route) {
+        PRODUCT_SCREEN -> {
             selectedItemIndex = 0
         }
-        CART_SCREEN ->{
+
+        CART_SCREEN -> {
             selectedItemIndex = 1
         }
-        FAVORITE_SCREEN ->{
+
+        FAVORITE_SCREEN -> {
             selectedItemIndex = 2
         }
     }
@@ -273,9 +282,11 @@ fun ProductRoot(
                         }
 
                     }
-                    AnimatedVisibility(displayMenuAppbar,
+                    AnimatedVisibility(
+                        displayMenuAppbar,
                         enter = fadeIn(animationSpec = tween(400)),
-                        exit = fadeOut(animationSpec = tween(400))) {
+                        exit = fadeOut(animationSpec = tween(400))
+                    ) {
                         DropdownMenu(
                             expanded = displayMenuAppbar,
                             onDismissRequest = {
@@ -376,7 +387,8 @@ fun ProductRoot(
                 selectedProduct?.let { product ->
                     ProductDetailScreen(
                         product,
-                        clickActions
+                        clickActions,
+                        snackBarHostState
                     )
                 }
             }
@@ -487,7 +499,10 @@ fun CartItemCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 // Product Info
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     SubcomposeAsyncImage(
                         model = product.images.firstOrNull(),
                         contentDescription = product.title,
@@ -533,8 +548,8 @@ fun CartItemCard(
             ) {
                 QuantitySelector(
                     currentCount = product.cartCount,
-                    onIncrease = { actions.onAddQuantityItem(product.id)},
-                    onDecrease = { actions.onRemoveQuantityItem(product.id)},
+                    onIncrease = { actions.onAddQuantityItem(product.id) },
+                    onDecrease = { actions.onRemoveQuantityItem(product.id) },
                     maxCount = product.stock,
                 )
                 val itemSubtotal = product.price.toDouble() * product.cartCount
@@ -652,8 +667,10 @@ fun ExitDialog(
 @Composable
 fun ProductDetailScreen(
     product: Product,
-    actions: ClickActions, // Optional actions
+    actions: ClickActions,
+    snackBarHostState: SnackbarHostState, // Optional actions
 ) {
+    val scope = rememberCoroutineScope()
     Log.d(TAG, "ProductDetailScreen for: ${product.title}")
     Column(
         modifier = Modifier
@@ -733,12 +750,23 @@ fun ProductDetailScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Button(
-                    onClick = { actions.onAddQuantityItem(product.id) },
+                    onClick = {
+                        actions.onAddQuantityItem(product.id)
+                        scope.launch {
+                            snackBarHostState.showSnackbar("${product.title} added to cart")
+
+                        }
+                    },
                     modifier = Modifier.weight(1f),
                     enabled = product.stock > 0 // Disable if out of stock
                 ) {
-                    Icon(Icons.Filled.ShoppingCart, contentDescription = "Add to Cart", modifier = Modifier.size(
-                        ButtonDefaults.IconSize))
+                    Icon(
+                        Icons.Filled.ShoppingCart,
+                        contentDescription = "Add to Cart",
+                        modifier = Modifier.size(
+                            ButtonDefaults.IconSize
+                        )
+                    )
                     Spacer(Modifier.size(ButtonDefaults.IconSpacing))
                     Text("Add to Cart")
                 }
@@ -748,9 +776,17 @@ fun ProductDetailScreen(
                     // border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline) // Default outline
                 ) {
                     if (product.isFavorite) {
-                        Icon(Icons.Filled.Favorite, contentDescription = "Favorite", tint = MaterialTheme.colorScheme.primary)
+                        Icon(
+                            Icons.Filled.Favorite,
+                            contentDescription = "Favorite",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     } else {
-                        Icon(Icons.Filled.FavoriteBorder, contentDescription = "Favorite", tint = MaterialTheme.colorScheme.primary)
+                        Icon(
+                            Icons.Filled.FavoriteBorder,
+                            contentDescription = "Favorite",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
             }
@@ -772,7 +808,11 @@ fun ProductDetailScreen(
 
             DetailItem("Category", product.category)
 
-            if (!product.brand.isNullOrEmpty() && !product.brand.equals("null", ignoreCase = true)) {
+            if (!product.brand.isNullOrEmpty() && !product.brand.equals(
+                    "null",
+                    ignoreCase = true
+                )
+            ) {
                 DetailItem("Brand", product.brand)
             }
 
@@ -792,7 +832,6 @@ fun ProductDetailScreen(
         }
     }
 }
-
 
 
 @Composable
@@ -971,7 +1010,13 @@ fun DeviceCard(product: Product, navController: NavHostController) {
             }
 
             CustomText(
-                value = "₹${String.format(Locale.ENGLISH, "%.2f", product.price)}", // Just the price for cleaner look
+                value = "₹${
+                    String.format(
+                        Locale.ENGLISH,
+                        "%.2f",
+                        product.price
+                    )
+                }", // Just the price for cleaner look
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
@@ -1216,7 +1261,7 @@ fun QuantitySelector(
     countTextStyle: TextStyle = MaterialTheme.typography.bodyLarge.copy(
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.onSurface // Explicitly setting, often same as default
-    )
+    ),
 ) {
     Row(
         modifier = modifier.padding(vertical = 4.dp),
