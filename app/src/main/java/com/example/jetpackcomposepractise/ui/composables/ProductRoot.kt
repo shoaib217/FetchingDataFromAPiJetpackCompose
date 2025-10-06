@@ -4,19 +4,16 @@ import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,7 +26,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -66,30 +62,16 @@ fun ProductRoot(
     val snackBarHostState = remember { SnackbarHostState() }
 
     val navItems = listOf(BottomNavItem.Home, BottomNavItem.Cart, BottomNavItem.Favorite)
-    var selectedItemIndex by remember { mutableIntStateOf(0) }
+
     val backStackEntry by navController.currentBackStackEntryAsState()
 
     var showAlertDialog by remember {
         mutableStateOf(false)
     }
 
-    var displayMenuAppbar by remember {
-        mutableStateOf(false)
-    }
 
-    when (backStackEntry?.destination?.route) {
-        PRODUCT_SCREEN -> {
-            selectedItemIndex = 0
-        }
+    val currentRoute = backStackEntry?.destination?.route
 
-        CART_SCREEN -> {
-            selectedItemIndex = 1
-        }
-
-        FAVORITE_SCREEN -> {
-            selectedItemIndex = 2
-        }
-    }
     val showBottomBar = backStackEntry?.destination?.route == PRODUCT_SCREEN
 
     Scaffold(snackbarHost = {
@@ -112,56 +94,30 @@ fun ProductRoot(
                 }
             },
             actions = {
-                AnimatedVisibility(showBottomBar) {
-                    IconButton(
-                        onClick = {
-                            displayMenuAppbar = !displayMenuAppbar
-                        },
-                    ) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = "Menu",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-
-                }
-                AnimatedVisibility(
-                    displayMenuAppbar,
-                    enter = fadeIn(animationSpec = tween(400)),
-                    exit = fadeOut(animationSpec = tween(400))
-                ) {
-                    DropdownMenu(
-                        expanded = displayMenuAppbar, onDismissRequest = {
-                            displayMenuAppbar = !displayMenuAppbar
-                        }) {
-
-                        categoryList?.forEach { categoryName ->
-                            DropdownMenuItem(text = {
-                                Text(text = categoryName)
-                            }, onClick = {
-                                clickActions.filterProductByCategory(categoryName)
-                                displayMenuAppbar = !displayMenuAppbar
-                            })
-                        }
-                    }
-
-                }
+                ActionItems(showBottomBar, categoryList, clickActions)
             })
     }, bottomBar = {
-        BottomBar(
-            navItems = navItems,
-            selectedItemIndex = selectedItemIndex,
-            onItemSelected = { index, route ->
-                selectedItemIndex = index
-                navController.navigate(route) {
-                    popUpTo(navController.graph.startDestinationId) {
-                        saveState = true
+        val selectedItemIndex = navItems.indexOfFirst { it.route == currentRoute }
+
+        // Only show the bottom bar if the route is one of the nav items.
+        AnimatedVisibility(
+            visible = selectedItemIndex != -1,
+            enter = slideInVertically(initialOffsetY = { 1000 }, animationSpec = tween(500)),
+            exit = slideOutVertically(targetOffsetY = { -1000 }, animationSpec = tween(500))
+        ) {
+            BottomBar(
+                navItems = navItems,
+                selectedItemIndex = selectedItemIndex,
+                onItemSelected = { index, route ->
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.startDestinationId) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
                     }
-                    launchSingleTop = true
-                    restoreState = true
-                }
-            })
+                })
+        }
     }) { paddingValues ->
         NavHost(
             modifier = Modifier
@@ -204,14 +160,15 @@ fun ProductRoot(
                 }
                 if (showAlertDialog) {
                     ExitDialog(
-                        onDismiss = { showAlertDialog = !showAlertDialog },
+                        onDismiss = { showAlertDialog = false },
                         onConfirmation = {
+                            showAlertDialog = false
                             clickActions.onDismiss()
                         })
                 }
                 BackHandler {
                     Log.d(TAG, "back press under scaffold")
-                    showAlertDialog = !showAlertDialog
+                    showAlertDialog = false
                 }
             }
 
