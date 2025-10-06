@@ -3,9 +3,10 @@ package com.example.jetpackcomposepractise.ui.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.jetpackcomposepractise.Filter
+import com.example.jetpackcomposepractise.data.model.Filter
 import com.example.jetpackcomposepractise.data.model.NetworkResponse
 import com.example.jetpackcomposepractise.data.model.Product
+import com.example.jetpackcomposepractise.data.model.UiState
 import com.example.jetpackcomposepractise.data.repository.ProductRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -191,8 +192,3 @@ class MainViewModel @Inject constructor(
     }
 }
 
-sealed class UiState {
-    object Success : UiState()
-    class Error(val message: String) : UiState()
-    object Loading : UiState()
-}
