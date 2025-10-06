@@ -102,8 +102,8 @@ fun ProductRoot(
         // Only show the bottom bar if the route is one of the nav items.
         AnimatedVisibility(
             visible = selectedItemIndex != -1,
-            enter = slideInVertically(initialOffsetY = { 1000 }, animationSpec = tween(500)),
-            exit = slideOutVertically(targetOffsetY = { -1000 }, animationSpec = tween(500))
+            enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(500)),
+            exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(500))
         ) {
             BottomBar(
                 navItems = navItems,
