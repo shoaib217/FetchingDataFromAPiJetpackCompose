@@ -31,7 +31,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -867,11 +866,7 @@ fun DotsIndicator(
     dotSize: Dp = 8.dp,
 ) {
     Row(
-        modifier = Modifier
-            .wrapContentWidth()
-            .height(dotSize),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         repeat(totalDots) { index ->
             val color = if (index == selectedIndex) selectedColor else unselectedColor
