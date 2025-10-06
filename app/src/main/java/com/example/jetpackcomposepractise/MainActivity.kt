@@ -14,8 +14,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,13 +31,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -69,6 +74,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -76,11 +82,15 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -143,8 +153,7 @@ class MainActivity : ComponentActivity() {
                 val deviceList by mainViewModel.deviceList.collectAsState()
                 val cartItems by mainViewModel.cartItems.collectAsState()
                 val favoriteDevice by mainViewModel.favoriteDevice.collectAsState()
-                val categoryList by
-                mainViewModel.categoryList.collectAsState()
+                val categoryList by mainViewModel.categoryList.collectAsState()
 
 
                 ProductRoot(
@@ -246,84 +255,77 @@ fun ProductRoot(
     }
     val showBottomBar = backStackEntry?.destination?.route == PRODUCT_SCREEN
 
-    Scaffold(
-        snackbarHost = {
-            SnackbarHost(hostState = snackBarHostState)
-        },
-        topBar = {
-            TopAppBar(
-                title = { Text(text = "Product Info") },
-                colors = TopAppBarDefaults.mediumTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
-                ),
-                navigationIcon = {
-                    if (navController.previousBackStackEntry != null) {
-                        IconButton(onClick = { navController.navigateUp() }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
-                            )
-                        }
+    Scaffold(snackbarHost = {
+        SnackbarHost(hostState = snackBarHostState)
+    }, topBar = {
+        TopAppBar(
+            title = { Text(text = "Product Info") },
+            colors = TopAppBarDefaults.mediumTopAppBarColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                titleContentColor = MaterialTheme.colorScheme.primary,
+            ),
+            navigationIcon = {
+                if (navController.previousBackStackEntry != null) {
+                    IconButton(onClick = { navController.navigateUp() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
-                },
-                actions = {
-                    AnimatedVisibility(showBottomBar) {
-                        IconButton(
-                            onClick = {
-                                displayMenuAppbar = !displayMenuAppbar
-                            },
-                        ) {
-                            Icon(
-                                Icons.Default.MoreVert,
-                                contentDescription = "Menu",
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-
-                    }
-                    AnimatedVisibility(
-                        displayMenuAppbar,
-                        enter = fadeIn(animationSpec = tween(400)),
-                        exit = fadeOut(animationSpec = tween(400))
+                }
+            },
+            actions = {
+                AnimatedVisibility(showBottomBar) {
+                    IconButton(
+                        onClick = {
+                            displayMenuAppbar = !displayMenuAppbar
+                        },
                     ) {
-                        DropdownMenu(
-                            expanded = displayMenuAppbar,
-                            onDismissRequest = {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = "Menu",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+
+                }
+                AnimatedVisibility(
+                    displayMenuAppbar,
+                    enter = fadeIn(animationSpec = tween(400)),
+                    exit = fadeOut(animationSpec = tween(400))
+                ) {
+                    DropdownMenu(
+                        expanded = displayMenuAppbar, onDismissRequest = {
+                            displayMenuAppbar = !displayMenuAppbar
+                        }) {
+
+                        categoryList?.forEach { categoryName ->
+                            DropdownMenuItem(text = {
+                                Text(text = categoryName)
+                            }, onClick = {
+                                clickActions.filterProductByCategory(categoryName)
                                 displayMenuAppbar = !displayMenuAppbar
-                            }) {
-
-                            categoryList?.forEach { categoryName ->
-                                DropdownMenuItem(text = {
-                                    Text(text = categoryName)
-                                }, onClick = {
-                                    clickActions.filterProductByCategory(categoryName)
-                                    displayMenuAppbar = !displayMenuAppbar
-                                })
-                            }
+                            })
                         }
+                    }
 
-                    }
                 }
-            )
-        },
-        bottomBar = {
-            BottomBar(
-                navItems = navItems,
-                selectedItemIndex = selectedItemIndex,
-                onItemSelected = { index, route ->
-                    selectedItemIndex = index
-                    navController.navigate(route) {
-                        popUpTo(navController.graph.startDestinationId) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
+            })
+    }, bottomBar = {
+        BottomBar(
+            navItems = navItems,
+            selectedItemIndex = selectedItemIndex,
+            onItemSelected = { index, route ->
+                selectedItemIndex = index
+                navController.navigate(route) {
+                    popUpTo(navController.graph.startDestinationId) {
+                        saveState = true
                     }
+                    launchSingleTop = true
+                    restoreState = true
                 }
-            )
-        }
-    ) { paddingValues ->
+            })
+    }) { paddingValues ->
         NavHost(
             modifier = Modifier
                 .fillMaxSize()
@@ -352,9 +354,7 @@ fun ProductRoot(
                             clickActions.filterProductByType(selectedFilter)
                         })
                     ProductScreen(
-                        navController, snackBarHostState,
-                        uiState,
-                        deviceList
+                        navController, snackBarHostState, uiState, deviceList
                     )
 
                 }
@@ -376,26 +376,21 @@ fun ProductRoot(
                 arguments = listOf(navArgument("id") { type = NavType.IntType }),
                 popExitTransition = {
                     slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = tween(100)
+                        targetOffsetX = { it }, animationSpec = tween(100)
                     )
-                }
-            ) {
+                }) {
                 val selectedProduct = deviceList?.firstOrNull { product ->
                     product.id == it.arguments?.getInt("id")
                 }
                 selectedProduct?.let { product ->
                     ProductDetailScreen(
-                        product,
-                        clickActions,
-                        snackBarHostState
+                        product, clickActions, snackBarHostState
                     )
                 }
             }
             composable(CART_SCREEN) {
                 CartScreen(
-                    cartItems = cartItems,
-                    clickActions
+                    cartItems = cartItems, clickActions
                 )
             }
             composable(FAVORITE_SCREEN) {
@@ -433,8 +428,7 @@ fun CartScreen(
 
             // Cart Items List
             LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(cartItems) { product ->
                     CartItemCard(product, clickActions)
@@ -469,8 +463,7 @@ fun CartScreen(
 
             // Checkout Button
             Button(
-                onClick = { /* Handle checkout logic */ },
-                modifier = Modifier.fillMaxWidth()
+                onClick = { /* Handle checkout logic */ }, modifier = Modifier.fillMaxWidth()
             ) {
                 Text(text = "Checkout")
             }
@@ -500,8 +493,7 @@ fun CartItemCard(
             ) {
                 // Product Info
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
+                    verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)
                 ) {
                     SubcomposeAsyncImage(
                         model = product.images.firstOrNull(),
@@ -567,8 +559,7 @@ fun CartItemCard(
 @Composable
 fun PlaceholderScreen(screenName: String) {
     Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
     ) {
         Text(text = screenName, style = MaterialTheme.typography.headlineMedium)
     }
@@ -580,11 +571,8 @@ fun MySnackBar(snackBarHostState: SnackbarHostState, message: String, random: In
     val scope = rememberCoroutineScope()
     LaunchedEffect(random) {
         scope.launch {
-            val snackBarResult = snackBarHostState
-                .showSnackbar(
-                    message = message,
-                    actionLabel = "close",
-                    duration = SnackbarDuration.Short
+            val snackBarResult = snackBarHostState.showSnackbar(
+                    message = message, actionLabel = "close", duration = SnackbarDuration.Short
                 )
 
             when (snackBarResult) {
@@ -680,10 +668,7 @@ fun ProductDetailScreen(
     ) {
         // --- Image Section ---
         ImageSlider(
-            images = product.images,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(300.dp) // Adjust height as needed
+            images = product.images, modifier = Modifier.fillMaxWidth()
         )
 
         // --- Core Info & Actions Section ---
@@ -746,8 +731,7 @@ fun ProductDetailScreen(
 
             // --- Action Buttons ---
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Button(
                     onClick = {
@@ -770,31 +754,45 @@ fun ProductDetailScreen(
                     Spacer(Modifier.size(ButtonDefaults.IconSpacing))
                     Text("Add to Cart")
                 }
-                OutlinedIconButton(
-                    // Using OutlinedIconButton for a secondary action look
-                    onClick = { actions.onToggleFavorite(product.id) },
-                    // border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline) // Default outline
+                val favoriteTooltipState = rememberTooltipState()
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                    tooltip = {
+                        PlainTooltip { Text(if (!product.isFavorite) "Removed from favorites" else "Added to favorites") }
+                    },
+                    state = favoriteTooltipState
                 ) {
-                    if (product.isFavorite) {
-                        Icon(
-                            Icons.Filled.Favorite,
-                            contentDescription = "Favorite",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    } else {
-                        Icon(
-                            Icons.Filled.FavoriteBorder,
-                            contentDescription = "Favorite",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                    OutlinedIconButton(
+                        // Using OutlinedIconButton for a secondary action look
+                        onClick = {
+                            scope.launch {
+                                actions.onToggleFavorite(product.id)
+                                favoriteTooltipState.show()
+                            }
+                        },
+                        // border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline) // Default outline
+                    ) {
+                        if (product.isFavorite) {
+                            Icon(
+                                Icons.Filled.Favorite,
+                                contentDescription = "Favorite",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Icon(
+                                Icons.Filled.FavoriteBorder,
+                                contentDescription = "Favorite",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
+
                 }
             }
         }
 
         HorizontalDivider(
-            thickness = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
 
         // --- Detailed Information Section ---
@@ -809,8 +807,7 @@ fun ProductDetailScreen(
             DetailItem("Category", product.category)
 
             if (!product.brand.isNullOrEmpty() && !product.brand.equals(
-                    "null",
-                    ignoreCase = true
+                    "null", ignoreCase = true
                 )
             ) {
                 DetailItem("Brand", product.brand)
@@ -860,24 +857,91 @@ private fun DetailItem(label: String, value: String?) {
     }
 }
 
-// Ensure your ImageSlider is adapted to take a Modifier if it wasn't already
+// Helper Composable for the dots
 @Composable
-fun ImageSlider(images: List<String>, modifier: Modifier = Modifier) {
-    LazyRow(modifier = modifier) { // Apply modifier here
-        items(images) { url ->
-            SubcomposeAsyncImage(
-                model = url,
-                contentDescription = "Product Image",
+fun DotsIndicator(
+    totalDots: Int,
+    selectedIndex: Int,
+    selectedColor: Color = Color.Blue,
+    unselectedColor: Color = Color.Gray,
+    dotSize: Dp = 8.dp,
+) {
+    Row(
+        modifier = Modifier
+            .wrapContentWidth()
+            .height(dotSize),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        repeat(totalDots) { index ->
+            val color = if (index == selectedIndex) selectedColor else unselectedColor
+
+            Box(
                 modifier = Modifier
-                    .fillParentMaxHeight() // Fill the height provided by the parent (e.g., 300.dp from Column)
-                    .aspectRatio(1f) // Maintain aspect ratio, adjust as needed e.g. 16/9f
-                    .padding(horizontal = 4.dp), // Some spacing between images
-                contentScale = ContentScale.Crop, // Crop usually works well for fixed height images
-                loading = {
-                    /* ... */
-                }
+                    .size(dotSize)
+                    .clip(CircleShape)
+                    .background(color)
+                    // Add padding to space out the dots
+                    .padding(8.dp)
             )
         }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun ImageSlider(images: List<String>, modifier: Modifier = Modifier) {
+
+    // 1. Remember the state of the LazyRow
+    val lazyListState = rememberLazyListState()
+
+    // 2. Calculate the currently visible item index (the "page")
+    val currentPage = remember {
+        derivedStateOf {
+            // Gets the index of the first completely visible item
+            lazyListState.firstVisibleItemIndex
+        }
+    }
+
+    // 3. Stack the slider and the dots vertically
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+
+        LazyRow(
+            // Use SnapFlingBehavior to ensure the row stops exactly on item boundaries
+            // which makes the "paging" feel clean and ensures currentPage is accurate.
+            flingBehavior = rememberSnapFlingBehavior(lazyListState), state = lazyListState,
+            // Ensure content fills the entire space horizontally for full-screen slides
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(images) { url ->
+                SubcomposeAsyncImage(
+                    model = url,
+                    contentDescription = "Product Image",
+                    modifier = Modifier
+                        .fillParentMaxHeight()
+                        .fillParentMaxWidth() // Important: Make each item take full width for clean paging
+                        .aspectRatio(1f) // Maintain aspect ratio if needed, or use .fillMaxWidth().height(300.dp)
+                        .padding(horizontal = 0.dp), // Remove horizontal padding here for clean snapping
+                    contentScale = ContentScale.Crop,
+                    loading = {
+                        Box(
+                            contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()
+                        ) {
+                            CircularProgressIndicator(strokeWidth = 2.dp)
+                        }
+                    })
+            }
+        }
+
+        // Add vertical spacing between the slider and the dots
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 4. Place the Dots Indicator below the slider
+        DotsIndicator(
+            totalDots = images.size,
+            selectedIndex = currentPage.value,
+            selectedColor = Color(0xFF007AFF) // A nice active blue
+        )
     }
 }
 
@@ -896,8 +960,7 @@ fun ProductScreen(
     when (result) {
         is UiState.Loading -> {
             Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.fillMaxSize()
+                contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()
             ) {
                 CircularProgressIndicator(strokeWidth = 2.dp)
             }
@@ -944,29 +1007,24 @@ fun ShowDeviceList(
 fun DeviceCard(product: Product, navController: NavHostController) {
     ElevatedCard(
         elevation = CardDefaults.cardElevation(
-            defaultElevation = 6.dp // Slightly reduced elevation can look cleaner
-        ),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        shape = RoundedCornerShape(12.dp), // Consistent corner rounding
+        defaultElevation = 6.dp // Slightly reduced elevation can look cleaner
+    ), colors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
+    ), shape = RoundedCornerShape(12.dp), // Consistent corner rounding
         modifier = Modifier
             .fillMaxWidth()
             .padding(
-                horizontal = 8.dp,
-                vertical = 6.dp
+                horizontal = 8.dp, vertical = 6.dp
             ) // Padding around the card itself in the grid
             .clickable(
                 onClick = {
                     navController.navigate(DETAIL_SCREEN + product.id)
-                }
-            )
+                })
             .wrapContentHeight() // Allow card to grow based on content
     ) {
         // Explicit Column to arrange content within the card
         Column(
-            modifier = Modifier
-                .padding(12.dp) // Inner padding for the content
+            modifier = Modifier.padding(12.dp) // Inner padding for the content
         ) {
             SubcomposeAsyncImage(
                 model = product.images.getOrNull(0),
@@ -979,8 +1037,7 @@ fun DeviceCard(product: Product, navController: NavHostController) {
                 contentScale = ContentScale.Crop, // Crop usually works well for fixed height images
                 loading = {
                     Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxSize()
+                        contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()
                     ) {
                         CircularProgressIndicator(strokeWidth = 2.dp)
                     }
@@ -1012,9 +1069,7 @@ fun DeviceCard(product: Product, navController: NavHostController) {
             CustomText(
                 value = "₹${
                     String.format(
-                        Locale.ENGLISH,
-                        "%.2f",
-                        product.price
+                        Locale.ENGLISH, "%.2f", product.price
                     )
                 }", // Just the price for cleaner look
                 style = MaterialTheme.typography.bodyLarge,
@@ -1053,8 +1108,7 @@ fun CustomText(
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
     Text(
-        text = "Hello $name!",
-        modifier = modifier
+        text = "Hello $name!", modifier = modifier
     )
 }
 
@@ -1068,9 +1122,7 @@ fun GreetingPreview() {
 
 
 enum class Filter(val value: String) {
-    PRICE("Price"),
-    RATING("Rating"),
-    STOCK("Stock")
+    PRICE("Price"), RATING("Rating"), STOCK("Stock")
 }
 
 @Composable
@@ -1105,8 +1157,7 @@ fun SingleSelectFilterChips(
                         }
                     } else {
                         null
-                    }
-                )
+                    })
             }
         }
     }
@@ -1161,8 +1212,7 @@ fun BottomBar(
                     onClick = { onItemSelected(index, item.route) },
                     icon = {
                         Icon(
-                            imageVector = item.icon,
-                            contentDescription = item.label
+                            imageVector = item.icon, contentDescription = item.label
                         )
                     },
                     label = {
@@ -1218,15 +1268,10 @@ fun Modifier.blurEffect(radius: Float): Modifier {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         this.then(
             Modifier.graphicsLayer {
-                renderEffect = RenderEffect
-                    .createBlurEffect(
-                        radius,
-                        radius,
-                        android.graphics.Shader.TileMode.DECAL
-                    )
-                    .asComposeRenderEffect()
-            }
-        )
+                renderEffect = RenderEffect.createBlurEffect(
+                        radius, radius, android.graphics.Shader.TileMode.DECAL
+                    ).asComposeRenderEffect()
+            })
     } else {
         // Fallback for older Android versions
         this
@@ -1288,8 +1333,7 @@ fun QuantitySelector(
 
         // Count Text
         Text(
-            text = currentCount.toString(),
-            style = countTextStyle, // Themed text style
+            text = currentCount.toString(), style = countTextStyle, // Themed text style
             modifier = Modifier.padding(horizontal = 8.dp)
         )
 
@@ -1323,10 +1367,6 @@ fun QuantitySelector(
 @Composable
 fun QuantitySelectorPreview() {
     MaterialTheme {
-        QuantitySelector(
-            currentCount = 1,
-            onIncrease = { },
-            onDecrease = { }
-        )
+        QuantitySelector(currentCount = 1, onIncrease = { }, onDecrease = { })
     }
 }
