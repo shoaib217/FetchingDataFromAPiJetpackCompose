@@ -6,6 +6,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -168,11 +169,18 @@ fun ProductRoot(
                 .padding(paddingValues),
             navController = navController,
             startDestination = PRODUCT_SCREEN,
-            enterTransition = { fadeIn(animationSpec = tween(500)) },
-            exitTransition = { fadeOut(animationSpec = tween(500)) },
-            popEnterTransition = { fadeIn(animationSpec = tween(500)) },
-            popExitTransition = { fadeOut(animationSpec = tween(500)) }
-
+            enterTransition = {
+                slideInHorizontally(initialOffsetX = { 1000 }, animationSpec = tween(500))
+            },
+            exitTransition = {
+                slideOutHorizontally(targetOffsetX = { -1000 }, animationSpec = tween(500))
+            },
+            popEnterTransition = {
+                slideInHorizontally(initialOffsetX = { -1000 }, animationSpec = tween(500))
+            },
+            popExitTransition = {
+                slideOutHorizontally(targetOffsetX = { 1000 }, animationSpec = tween(500))
+            }
 
         ) {
             composable(PRODUCT_SCREEN) {
