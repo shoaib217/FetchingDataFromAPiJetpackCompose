@@ -2,9 +2,9 @@ package com.example.jetpackcomposepractise.ui.composables
 
 import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
@@ -126,16 +126,32 @@ fun ProductRoot(
             navController = navController,
             startDestination = PRODUCT_SCREEN,
             enterTransition = {
-                slideInHorizontally(initialOffsetX = { 1000 }, animationSpec = tween(500))
+                // Forward navigation: New screen slides in from the right (Start direction)
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Start,
+                    animationSpec = tween(500)
+                )
             },
             exitTransition = {
-                slideOutHorizontally(targetOffsetX = { -1000 }, animationSpec = tween(500))
+                // Forward navigation: Old screen slides out to the left (Start direction)
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Start,
+                    animationSpec = tween(500)
+                )
             },
             popEnterTransition = {
-                slideInHorizontally(initialOffsetX = { -1000 }, animationSpec = tween(500))
+                // Back navigation: Previous screen slides in from the left (End direction)
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.End,
+                    animationSpec = tween(500)
+                )
             },
             popExitTransition = {
-                slideOutHorizontally(targetOffsetX = { 1000 }, animationSpec = tween(500))
+                // Back navigation (including predictive back): Current screen slides out to the right (End direction)
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.End,
+                    animationSpec = tween(500)
+                )
             }
 
         ) {
@@ -168,7 +184,7 @@ fun ProductRoot(
                 }
                 BackHandler {
                     Log.d(TAG, "back press under scaffold")
-                    showAlertDialog = false
+                    showAlertDialog = !showAlertDialog
                 }
             }
 
