@@ -1,4 +1,4 @@
-package com.example.jetpackcomposepractise.ui.composables
+package com.example.jetpackcomposepractise.ui.root_screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box

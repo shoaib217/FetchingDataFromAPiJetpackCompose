@@ -1,4 +1,4 @@
-package com.example.jetpackcomposepractise.ui.composables
+package com.example.jetpackcomposepractise.ui.shared_widget
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize

@@ -1,4 +1,4 @@
-package com.example.jetpackcomposepractise.ui.composables
+package com.example.jetpackcomposepractise.ui.products
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.jetpackcomposepractise.data.model.Product
 import com.example.jetpackcomposepractise.data.model.UiState
+import com.example.jetpackcomposepractise.ui.shared_widget.ShowDeviceList
 
 /**
  * product list screen which contains product

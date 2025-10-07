@@ -9,7 +9,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.example.jetpackcomposepractise.data.model.ClickActions
 import com.example.jetpackcomposepractise.data.model.Filter
-import com.example.jetpackcomposepractise.ui.composables.ProductRoot
+import com.example.jetpackcomposepractise.ui.root_screen.ProductRoot
 import com.example.jetpackcomposepractise.ui.theme.JetpackComposePractiseTheme
 import com.example.jetpackcomposepractise.ui.viewmodel.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint

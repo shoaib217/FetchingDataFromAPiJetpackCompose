@@ -1,4 +1,4 @@
-package com.example.jetpackcomposepractise.ui.composables
+package com.example.jetpackcomposepractise.ui.product_detail
 
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement

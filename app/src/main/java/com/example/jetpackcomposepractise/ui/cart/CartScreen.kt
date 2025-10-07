@@ -1,4 +1,4 @@
-package com.example.jetpackcomposepractise.ui.composables
+package com.example.jetpackcomposepractise.ui.cart
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
 import com.example.jetpackcomposepractise.data.model.ClickActions
 import com.example.jetpackcomposepractise.data.model.Product
+import com.example.jetpackcomposepractise.ui.product_detail.QuantitySelector
+import com.example.jetpackcomposepractise.ui.shared_widget.PlaceholderScreen
 import java.util.Locale
 
 @Composable

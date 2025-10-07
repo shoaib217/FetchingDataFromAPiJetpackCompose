@@ -1,4 +1,4 @@
-package com.example.jetpackcomposepractise.ui.composables
+package com.example.jetpackcomposepractise.ui.root_screen
 
 import android.util.Log
 import androidx.activity.compose.BackHandler
@@ -46,6 +46,11 @@ import com.example.jetpackcomposepractise.data.model.ClickActions
 import com.example.jetpackcomposepractise.data.model.Filter
 import com.example.jetpackcomposepractise.data.model.Product
 import com.example.jetpackcomposepractise.data.model.UiState
+import com.example.jetpackcomposepractise.ui.cart.CartScreen
+import com.example.jetpackcomposepractise.ui.favorites.FavoriteScreen
+import com.example.jetpackcomposepractise.ui.product_detail.ProductDetailScreen
+import com.example.jetpackcomposepractise.ui.products.ProductScreen
+import com.example.jetpackcomposepractise.ui.products.SingleSelectFilterChips
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

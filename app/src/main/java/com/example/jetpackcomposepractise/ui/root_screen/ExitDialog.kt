@@ -1,4 +1,4 @@
-package com.example.jetpackcomposepractise.ui.composables
+package com.example.jetpackcomposepractise.ui.root_screen
 
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon

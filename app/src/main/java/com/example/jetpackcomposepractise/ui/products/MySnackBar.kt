@@ -1,4 +1,4 @@
-package com.example.jetpackcomposepractise.ui.composables
+package com.example.jetpackcomposepractise.ui.products
 
 import android.util.Log
 import androidx.compose.material3.SnackbarDuration
