@@ -79,11 +79,18 @@ fun ProductRoot(
 
     val showBottomBar = backStackEntry?.destination?.route == PRODUCT_SCREEN
 
+    val title = when(currentRoute) {
+        PRODUCT_SCREEN -> "Products"
+        CART_SCREEN -> "Cart"
+        FAVORITE_SCREEN -> "Favorites"
+        else -> ""
+    }
+
     Scaffold(snackbarHost = {
         SnackbarHost(hostState = snackBarHostState)
     }, topBar = {
         TopAppBar(
-            title = { Text(text = "Product Info") },
+            title = { Text(text = title) },
             colors = TopAppBarDefaults.mediumTopAppBarColors(
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 titleContentColor = MaterialTheme.colorScheme.primary,
