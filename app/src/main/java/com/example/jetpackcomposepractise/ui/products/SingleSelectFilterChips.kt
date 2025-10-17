@@ -1,8 +1,9 @@
 package com.example.jetpackcomposepractise.ui.products
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.FilterChip
@@ -22,33 +23,36 @@ fun SingleSelectFilterChips(
     onFilterSelected: (Filter?) -> Unit,
 ) {
 
-    Column {
-        Row {
-            filters.forEach { filter ->
-                FilterChip(
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                    selected = selectedFilter == filter,
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                        // ... other colors as needed
-                    ),
-                    onClick = {
-                        onFilterSelected(filter)
-                    },
-                    label = { Text(filter.value) },
-                    leadingIcon = if (selectedFilter == filter) {
-                        {
-                            Icon(
-                                imageVector = Icons.Filled.Done,
-                                contentDescription = "Selected",
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    } else {
-                        null
-                    })
-            }
+    // 3. Replace FlowRow with LazyRow
+    LazyRow(
+        modifier = Modifier.padding(horizontal = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // 4. Use the 'items' extension function for cleaner and more efficient code
+        items(filters) { filter ->
+            FilterChip(
+                modifier = Modifier.padding(horizontal = 8.dp),
+                selected = selectedFilter == filter,
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    // ... other colors as needed
+                ),
+                onClick = {
+                    onFilterSelected(filter)
+                },
+                label = { Text(filter.value) },
+                leadingIcon = if (selectedFilter == filter) {
+                    {
+                        Icon(
+                            imageVector = Icons.Filled.Done,
+                            contentDescription = "Selected",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                } else {
+                    null
+                })
         }
     }
 }

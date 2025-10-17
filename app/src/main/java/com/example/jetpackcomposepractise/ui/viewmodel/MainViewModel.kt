@@ -63,11 +63,22 @@ class MainViewModel @Inject constructor(
                 list.filter { it.category == category }
             }
 
-            // 2. Apply sort filter
+            // 2. Apply filter or sort based on the selected filter type
             when (filter) {
-                Filter.PRICE -> filteredList.sortedByDescending { it.price }
+                // --- Filtering Logic (Range-based) ---
+                Filter.BETWEEN_500_1000 -> filteredList.filter { it.price in 500.0..1000.0 }
+                Filter.OVER_1000 -> filteredList.filter { it.price > 1000 }
+                Filter.UNDER_500 -> filteredList.filter { it.price < 500 }
+                Filter.OVER_5000 -> filteredList.filter { it.price > 5000 }
+                Filter.OVER_10000 -> filteredList.filter { it.price > 10000 }
+
+                // --- Sorting Logic (Order-based) ---
                 Filter.RATING -> filteredList.sortedByDescending { it.rating }
-                Filter.STOCK -> filteredList.sortedByDescending { it.stock }
+                Filter.PRICE_ASC -> filteredList.sortedBy { it.price}
+                Filter.PRICE_DESC -> filteredList.sortedByDescending { it.price }
+                Filter.NAME -> filteredList.sortedBy { it.title } // Changed to A-Z sort for better usability
+
+                // --- Default Case ---
                 null -> filteredList
             }
         }
@@ -76,6 +87,7 @@ class MainViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = null
     )
+
 
     // Derived StateFlows for favorite and cart items, based on the master product list
     val favoriteDevice: StateFlow<List<Product>?> = _products.map { list ->
