@@ -87,52 +87,58 @@ class MainViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    // The main public state flow for the UI.
-    // It combines the master product list with the current filter and category selections.
-    // Every time a selection changes, this flow will automatically emit an updated list.
-    val deviceList: StateFlow<List<Product>?> = combine(
+
+    val deviceList: StateFlow<List<Product>> = combine(
         _products,
         _currentCategory,
         _currentFilter,
         favoriteDevice,
         cartItems,
-    ) { products, category, filter, favoriteProducts,cartItems ->
-        products.let { list ->
-            // 1. Apply category filter
-            val filteredList = if (category.equals("All", true)) {
-                list
-            } else {
-                list.filter { it.category == category }
-            }
+    ) { products, category, filter, favoriteProducts, cartItems ->
+        // 1. Pre-process for efficient lookups (O(1))
+        val favoriteProductIds = favoriteProducts.map { it.id }.toSet()
+        val cartItemMap = cartItems.associateBy({ it.id }, { it.cartCount })
 
-            filteredList.forEach {
-                it.isFavorite = it.id in favoriteProducts.map { favorite-> favorite.id }
-                it.cartCount = cartItems.find { cart -> cart.id == it.id }?.cartCount ?: 0
+        products.asSequence()
+            // 2. Apply category filter
+            .filter { product ->
+                category.equals("All", ignoreCase = true) || product.category.equals(category, ignoreCase = true)
             }
-            // 2. Apply filter or sort based on the selected filter type
-            when (filter) {
-                // --- Filtering Logic (Range-based) ---
-                Filter.BETWEEN_500_1000 -> filteredList.filter { it.price in 500.0..1000.0 }
-                Filter.OVER_1000 -> filteredList.filter { it.price > 1000 }
-                Filter.UNDER_500 -> filteredList.filter { it.price < 500 }
-                Filter.OVER_5000 -> filteredList.filter { it.price > 5000 }
-                Filter.OVER_10000 -> filteredList.filter { it.price > 10000 }
-
-                // --- Sorting Logic (Order-based) ---
-                Filter.RATING -> filteredList.sortedByDescending { it.rating }
-                Filter.PRICE_ASC -> filteredList.sortedBy { it.price }
-                Filter.PRICE_DESC -> filteredList.sortedByDescending { it.price }
-                Filter.NAME -> filteredList.sortedBy { it.title } // Changed to A-Z sort for better usability
-
-                // --- Default Case ---
-                null -> filteredList
+            // 3. Apply price-based filter
+            .filter { product ->
+                when (filter) {
+                    Filter.BETWEEN_500_1000 -> product.price in 500.0..1000.0
+                    Filter.OVER_1000 -> product.price > 1000
+                    Filter.UNDER_500 -> product.price < 500
+                    Filter.OVER_5000 -> product.price > 5000
+                    Filter.OVER_10000 -> product.price > 10000
+                    else -> true // Keep item if it's a sort filter or null
+                }
             }
-        }
+            // 4. Map to new, immutable objects with updated state
+            .map { product ->
+                product.copy(
+                    isFavorite = product.id in favoriteProductIds,
+                    cartCount = cartItemMap[product.id] ?: 0
+                )
+            }
+            // 5. Apply sorting if required, converting sequence to a sorted list
+            .let { sequence ->
+                when (filter) {
+                    Filter.RATING -> sequence.sortedByDescending { it.rating }.toList()
+                    Filter.PRICE_ASC -> sequence.sortedBy { it.price }.toList()
+                    Filter.PRICE_DESC -> sequence.sortedByDescending { it.price }.toList()
+                    Filter.NAME -> sequence.sortedBy { it.title }.toList()
+                    // If not sorting, convert the final sequence to a list
+                    else -> sequence.toList()
+                }
+            }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = null
+        initialValue = emptyList() // 6. Use an empty list for the initial state
     )
+
 
 
 
