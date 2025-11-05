@@ -54,14 +54,49 @@ class MainViewModel @Inject constructor(
         initialValue = null
     )
 
+    val favoriteDevice: StateFlow<List<Product>> =
+        combine(productRepository.getFavoriteProducts(), _products) { favoriteIds, productList ->
+            productList.filter { it.id in favoriteIds }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L), // Use underscore for readability
+            initialValue = emptyList() // Use a non-nullable type with a sensible default
+        )
+
+    val cartItems: StateFlow<List<Product>> =
+        combine(
+            productRepository.getUserCartItem(),
+            _products
+        ) { userCartItems, productList ->
+            // For efficient lookups, convert the cart items list to a map where the key is the product ID.
+            val cartItemMap = userCartItems.associateBy { it.productId }
+
+            // Use map to create a new list with updated cart counts, promoting immutability.
+            productList.map { product ->
+                val cartCount = cartItemMap[product.id]?.cartCount ?: 0
+                // Use the copy method (assuming Product is a data class) to create an updated object.
+                product.copy(cartCount = cartCount)
+            }.filter {
+                it.cartCount > 0
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            // Keep the flow active for 5s after the last collector stops, useful for screen rotations.
+            started = SharingStarted.WhileSubscribed(5_000L),
+            // Provide an empty list as the initial state before the flows emit their first values.
+            initialValue = emptyList()
+        )
+
     // The main public state flow for the UI.
     // It combines the master product list with the current filter and category selections.
     // Every time a selection changes, this flow will automatically emit an updated list.
     val deviceList: StateFlow<List<Product>?> = combine(
         _products,
         _currentCategory,
-        _currentFilter
-    ) { products, category, filter ->
+        _currentFilter,
+        favoriteDevice,
+        cartItems,
+    ) { products, category, filter, favoriteProducts,cartItems ->
         products.let { list ->
             // 1. Apply category filter
             val filteredList = if (category.equals("All", true)) {
@@ -70,6 +105,10 @@ class MainViewModel @Inject constructor(
                 list.filter { it.category == category }
             }
 
+            filteredList.forEach {
+                it.isFavorite = it.id in favoriteProducts.map { favorite-> favorite.id }
+                it.cartCount = cartItems.find { cart -> cart.id == it.id }?.cartCount ?: 0
+            }
             // 2. Apply filter or sort based on the selected filter type
             when (filter) {
                 // --- Filtering Logic (Range-based) ---
@@ -96,22 +135,6 @@ class MainViewModel @Inject constructor(
     )
 
 
-    // Derived StateFlows for favorite and cart items, based on the master product list
-    val favoriteDevice: StateFlow<List<Product>?> = _products.map { list ->
-        list.filter { it.isFavorite }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = null
-    )
-
-    val cartItems: StateFlow<List<Product>?> = _products.map { list ->
-        list.filter { it.cartCount > 0 }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = null
-    )
 
     init {
         getDevices()
@@ -164,7 +187,11 @@ class MainViewModel @Inject constructor(
     // All other derived flows automatically react to these changes.
     fun markProductAsFavorite(productId: Int, isFavorite: Boolean) {
         viewModelScope.launch {
-            productRepository.markProductFavorite(productId, isFavorite)
+            if (isFavorite) {
+                productRepository.addProductToFavorites(productId)
+            } else {
+                productRepository.removeProductFromFavorites(productId)
+            }
         }
     }
 

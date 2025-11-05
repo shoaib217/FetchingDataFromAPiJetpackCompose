@@ -1,8 +1,11 @@
 package com.example.jetpackcomposepractise.data.repository
 
+import com.example.jetpackcomposepractise.data.local.PreferenceManager
 import com.example.jetpackcomposepractise.data.local.ProductDao
 import com.example.jetpackcomposepractise.data.model.NetworkResponse
 import com.example.jetpackcomposepractise.data.model.Product
+import com.example.jetpackcomposepractise.data.model.UserCartItem
+import com.example.jetpackcomposepractise.data.model.UserFavoriteProduct
 import com.example.jetpackcomposepractise.data.remote.APIService
 import com.example.jetpackcomposepractise.util.NetworkConnectivityHelper
 import jakarta.inject.Inject
@@ -27,6 +30,7 @@ class ProductRepositoryImpl @Inject constructor(
     private val apiService: APIService,
     private val productDao: ProductDao, // Inject the DAO
     private val networkConnectivityHelper: NetworkConnectivityHelper,
+    private val preferenceManager: PreferenceManager, // <-- Inject PreferenceManager
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ProductRepository {
 
@@ -34,11 +38,26 @@ class ProductRepositoryImpl @Inject constructor(
         return productDao.getAllProducts()
     }
 
+    override fun getFavoriteProducts(): Flow<List<Int>> {
+        return productDao.getAllFavoriteProducts()
+    }
+
+    override fun getUserCartItem(): Flow<List<UserCartItem>> {
+        return productDao.getUserCartItem()
+    }
+
+
     override suspend fun syncProducts(): NetworkResponse {
-        val isDbEmpty = productDao.getProductCount() == 0
+        /*val isDbEmpty = productDao.getProductCount() == 0
         if (!isDbEmpty) {
             return NetworkResponse.Success // DB is already populated, no action needed
+        }*/
+
+        if (!preferenceManager.isCacheStale()) {
+            // Cache is fresh, no need to sync.
+            return NetworkResponse.Success
         }
+
 
         // If the DB is empty, try fetching from the network
         if (networkConnectivityHelper.isNetworkAvailable()) {
@@ -48,6 +67,7 @@ class ProductRepositoryImpl @Inject constructor(
                     val products = response.body()?.products
                     if (!products.isNullOrEmpty()) {
                         productDao.insertAll(products) // Save to database
+                        preferenceManager.saveSyncTimestamp()
                         NetworkResponse.Success
                     } else {
                         NetworkResponse.Error("No products found from API")
@@ -66,7 +86,7 @@ class ProductRepositoryImpl @Inject constructor(
 
     override suspend fun addToCart(productId: Int) {
         withContext(ioDispatcher) {
-            productDao.addToCart(productId)
+            productDao.upsertToCart(productId)
         }
     }
 
@@ -82,9 +102,16 @@ class ProductRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun markProductFavorite(productId: Int, isFavorite: Boolean) {
+
+    override suspend fun addProductToFavorites(productId: Int) {
         withContext(ioDispatcher) {
-            productDao.markProductFavorite(productId, isFavorite)
+            productDao.addProductToFavorites(UserFavoriteProduct(productId))
+        }
+    }
+
+    override suspend fun removeProductFromFavorites(productId: Int) {
+        withContext(ioDispatcher) {
+            productDao.removeProductFromFavorites(productId)
         }
     }
 }

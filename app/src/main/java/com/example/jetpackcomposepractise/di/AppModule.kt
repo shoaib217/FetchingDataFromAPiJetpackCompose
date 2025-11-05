@@ -3,6 +3,7 @@ package com.example.jetpackcomposepractise.di
 import android.content.Context
 import androidx.room.Room
 import com.example.jetpackcomposepractise.data.local.AppDatabase
+import com.example.jetpackcomposepractise.data.local.PreferenceManager
 import com.example.jetpackcomposepractise.data.local.ProductDao
 import com.example.jetpackcomposepractise.data.remote.APIService
 import com.example.jetpackcomposepractise.data.repository.ProductRepository
@@ -58,8 +59,10 @@ object AppModule {
         apiService: APIService,
         productDao: ProductDao,
         networkConnectivityHelper: NetworkConnectivityHelper,
+      preferenceManager: PreferenceManager, // <-- Inject PreferenceManager
+
     ): ProductRepository {
-        return ProductRepositoryImpl(apiService, productDao, networkConnectivityHelper)
+        return ProductRepositoryImpl(apiService, productDao, networkConnectivityHelper, preferenceManager)
     }
 
     @Provides
