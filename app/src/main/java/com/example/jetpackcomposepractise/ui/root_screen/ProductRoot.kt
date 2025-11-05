@@ -213,13 +213,17 @@ fun ProductRoot(
                 }
                 selectedProduct?.let { product ->
                     ProductDetailScreen(
-                        product, clickActions, snackBarHostState
+                        product, clickActions, snackBarHostState, onNavigateToCart = {
+                            navController.navigate(CART_SCREEN)
+                        }
                     )
                 }
             }
             composable(CART_SCREEN) {
                 CartScreen(
-                    cartItems = cartItems, clickActions
+                    cartItems = cartItems, clickActions, navigateToDetailScreen = {
+                        navController.navigate("$DETAIL_SCREEN$it")
+                    }
                 )
             }
             composable(FAVORITE_SCREEN) {

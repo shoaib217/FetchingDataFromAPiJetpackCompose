@@ -1,5 +1,7 @@
 package com.example.jetpackcomposepractise.ui.cart
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +45,7 @@ import java.util.Locale
 fun CartScreen(
     cartItems: List<Product>?,
     clickActions: ClickActions,
+    navigateToDetailScreen: (id: Int) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -64,14 +68,14 @@ fun CartScreen(
                 modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(cartItems) { product ->
-                    CartItemCard(product, clickActions)
+                    CartItemCard(product, clickActions, navigateToDetailScreen)
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             // Total Price Card
-            val totalPrice = cartItems.sumOf { it.price.toDouble() * it.cartCount }
+            val totalPrice = cartItems.sumOf { it.price * it.cartCount }
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
@@ -108,6 +112,7 @@ fun CartScreen(
 fun CartItemCard(
     product: Product,
     actions: ClickActions,
+    navigateToDetailScreen: (id: Int) -> Unit,
 ) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -120,13 +125,22 @@ fun CartItemCard(
                 .padding(16.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        onClick = {
+                            navigateToDetailScreen.invoke(product.id)
+                        },
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null, // This disables the ripple effect
+                    ),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 // Product Info
                 Row(
-                    verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
                 ) {
                     SubcomposeAsyncImage(
                         model = product.images.firstOrNull(),
@@ -145,7 +159,13 @@ fun CartItemCard(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "₹${String.format(Locale.getDefault(), "%.2f", product.price)}",
+                            text = "₹${
+                                String.format(
+                                    Locale.getDefault(),
+                                    "%.2f",
+                                    product.price
+                                )
+                            }",
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -177,7 +197,7 @@ fun CartItemCard(
                     onDecrease = { actions.onRemoveQuantityItem(product.id) },
                     maxCount = product.stock,
                 )
-                val itemSubtotal = product.price.toDouble() * product.cartCount
+                val itemSubtotal = product.price * product.cartCount
                 Text(
                     text = "Subtotal: ₹${String.format(Locale.getDefault(), "%.2f", itemSubtotal)}",
                     style = MaterialTheme.typography.bodyLarge,

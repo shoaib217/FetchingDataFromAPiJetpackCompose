@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
@@ -50,7 +51,8 @@ import java.util.Locale
 fun ProductDetailScreen(
     product: Product,
     actions: ClickActions,
-    snackBarHostState: SnackbarHostState, // Optional actions
+    snackBarHostState: SnackbarHostState,
+    onNavigateToCart: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     Log.d(TAG, "ProductDetailScreen for: ${product.title}")
@@ -131,8 +133,14 @@ fun ProductDetailScreen(
                     onClick = {
                         actions.onAddQuantityItem(product.id)
                         scope.launch {
-                            snackBarHostState.showSnackbar("${product.title} added to cart")
-
+                            val result = snackBarHostState.showSnackbar(
+                                message = "${product.title} added to cart",
+                                actionLabel = "Open", // The text for the action button
+                            )
+                            // Check if the user clicked the action button
+                            if (result == SnackbarResult.ActionPerformed) {
+                                onNavigateToCart() // Execute the navigation callback
+                            }
                         }
                     },
                     modifier = Modifier.weight(1f),
