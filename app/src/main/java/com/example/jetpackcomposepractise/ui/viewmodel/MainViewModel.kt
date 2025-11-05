@@ -68,22 +68,19 @@ class MainViewModel @Inject constructor(
             productRepository.getUserCartItem(),
             _products
         ) { userCartItems, productList ->
-            // For efficient lookups, convert the cart items list to a map where the key is the product ID.
-            val cartItemMap = userCartItems.associateBy { it.productId }
+            // For efficient lookups, convert the product list to a map.
+            val productMap = productList.associateBy { it.id }
 
-            // Use map to create a new list with updated cart counts, promoting immutability.
-            productList.map { product ->
-                val cartCount = cartItemMap[product.id]?.cartCount ?: 0
-                // Use the copy method (assuming Product is a data class) to create an updated object.
-                product.copy(cartCount = cartCount)
-            }.filter {
-                it.cartCount > 0
+            // More efficiently build the final list by iterating over cart items.
+            // mapNotNull finds the product, updates it, and filters out any non-matches.
+            userCartItems.mapNotNull { cartItem ->
+                productMap[cartItem.productId]?.copy(cartCount = cartItem.cartCount)
             }
         }.stateIn(
             scope = viewModelScope,
-            // Keep the flow active for 5s after the last collector stops, useful for screen rotations.
+            // Keep the flow active for 5s to survive configuration changes.
             started = SharingStarted.WhileSubscribed(5_000L),
-            // Provide an empty list as the initial state before the flows emit their first values.
+            // The initial state is an empty list before data is loaded.
             initialValue = emptyList()
         )
 

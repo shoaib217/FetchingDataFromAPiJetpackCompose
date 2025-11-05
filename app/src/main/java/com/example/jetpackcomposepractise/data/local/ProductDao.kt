@@ -89,7 +89,11 @@ interface ProductDao {
     suspend fun removeFromCart(productId: Int) {
         val currentItem = getUserCartItemById(productId)
         if (currentItem != null) {
-            updateCartItem(currentItem.copy(cartCount = currentItem.cartCount - 1))
+            if (currentItem.cartCount > 1) {
+                updateCartItem(currentItem.copy(cartCount = currentItem.cartCount - 1))
+            } else {
+                clearCartItem(productId)
+            }
         }
 
     }
@@ -98,7 +102,7 @@ interface ProductDao {
      * Sets the cartCount of a specific product to 0, effectively removing all units of that item from the cart.
      * @param productId The ID of the product to clear from the cart.
      */
-    @Query("UPDATE user_cart_item SET cartCount = 0 WHERE productId = :productId")
+    @Query("Delete FROM user_cart_item WHERE productId = :productId")
     fun clearCartItem(productId: Int)
 
 
