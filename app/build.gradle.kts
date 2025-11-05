@@ -1,4 +1,3 @@
-
 plugins {
     alias(libs.plugins.android)
     alias(libs.plugins.kotlinAndroid)
@@ -7,7 +6,9 @@ plugins {
     alias(libs.plugins.compose.compiler)
 
 }
-
+kotlin {
+    jvmToolchain(17)
+}
 android {
     namespace = "com.example.jetpackcomposepractise"
     compileSdk = 36
@@ -35,13 +36,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "1.8"
-        freeCompilerArgs = listOf("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode")
-    }
+
+
     buildFeatures {
         compose = true
     }
@@ -58,6 +57,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.text.google.fonts)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+    implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.room.runtime)
+    ksp(libs.androidx.room.compiler)
     implementation(libs.navigation.compose)
     implementation(libs.coil.compose)
     implementation(libs.core.ktx)

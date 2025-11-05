@@ -154,7 +154,7 @@ fun CartItemCard(
                 }
 
                 // Delete Button
-                IconButton(onClick = { actions.onRemoveFromCart(product.id) }) {
+                IconButton(onClick = { actions.clearCartItem(product.id) }) {
                     Icon(
                         imageVector = Icons.Default.Delete,
                         contentDescription = "Remove from cart",

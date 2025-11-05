@@ -26,7 +26,14 @@ class MainViewModel @Inject constructor(
 
     // A private mutable state flow to hold the master list of all products
     // This is the single source of truth that will never be filtered or sorted directly.
-    private val _products = MutableStateFlow<List<Product>?>(null)
+    private val _products = productRepository.getProducts().map {
+        performRupeesConversion(it)
+    }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()// Provide an appropriate initial value
+        )
 
     // State flows to hold the current filter and sort selections
     private val _currentFilter = MutableStateFlow<Filter?>(null)
@@ -38,7 +45,7 @@ class MainViewModel @Inject constructor(
 
     // Public state flow for the list of categories, derived from the master product list
     val categoryList: StateFlow<List<String>?> = _products.map { products ->
-        products?.groupBy { it.category }?.keys?.toMutableList()?.apply {
+        products.groupBy { it.category }.keys.toMutableList().apply {
             add(0, "All")
         }
     }.stateIn(
@@ -55,7 +62,7 @@ class MainViewModel @Inject constructor(
         _currentCategory,
         _currentFilter
     ) { products, category, filter ->
-        products?.let { list ->
+        products.let { list ->
             // 1. Apply category filter
             val filteredList = if (category.equals("All", true)) {
                 list
@@ -74,7 +81,7 @@ class MainViewModel @Inject constructor(
 
                 // --- Sorting Logic (Order-based) ---
                 Filter.RATING -> filteredList.sortedByDescending { it.rating }
-                Filter.PRICE_ASC -> filteredList.sortedBy { it.price}
+                Filter.PRICE_ASC -> filteredList.sortedBy { it.price }
                 Filter.PRICE_DESC -> filteredList.sortedByDescending { it.price }
                 Filter.NAME -> filteredList.sortedBy { it.title } // Changed to A-Z sort for better usability
 
@@ -91,7 +98,7 @@ class MainViewModel @Inject constructor(
 
     // Derived StateFlows for favorite and cart items, based on the master product list
     val favoriteDevice: StateFlow<List<Product>?> = _products.map { list ->
-        list?.filter { it.isFavorite }
+        list.filter { it.isFavorite }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -99,7 +106,7 @@ class MainViewModel @Inject constructor(
     )
 
     val cartItems: StateFlow<List<Product>?> = _products.map { list ->
-        list?.filter { it.cartCount > 0 }
+        list.filter { it.cartCount > 0 }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -115,13 +122,13 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = UiState.Loading
             try {
-                when (val responseData = productRepository.getProducts()) {
+                when (val responseData = productRepository.syncProducts()) {
                     is NetworkResponse.Error -> {
                         _uiState.value = UiState.Error(responseData.message)
                     }
+
                     is NetworkResponse.Success -> {
                         // The master list is updated only once on a successful API call.
-                        _products.value = performRupeesConversion(responseData.productList)
                         _uiState.value = UiState.Success
                     }
                 }
@@ -155,52 +162,28 @@ class MainViewModel @Inject constructor(
 
     // These functions now update the master list (`_products`).
     // All other derived flows automatically react to these changes.
-    fun markProductAsFavorite(productId: Int) {
-        val currentList = _products.value ?: return
-        val updatedList = currentList.map { product ->
-            if (product.id == productId) {
-                product.copy(isFavorite = !product.isFavorite)
-            } else {
-                product
-            }
+    fun markProductAsFavorite(productId: Int, isFavorite: Boolean) {
+        viewModelScope.launch {
+            productRepository.markProductFavorite(productId, isFavorite)
         }
-        _products.value = updatedList
     }
 
     fun addToCart(productId: Int) {
-        val currentList = _products.value ?: return
-        val updatedList = currentList.map { product ->
-            if (product.id == productId) {
-                product.copy(cartCount = product.cartCount + 1)
-            } else {
-                product
-            }
+        viewModelScope.launch {
+            productRepository.addToCart(productId)
         }
-        _products.value = updatedList
     }
 
     fun removeFromCart(productId: Int) {
-        val currentList = _products.value ?: return
-        val updatedList = currentList.map { product ->
-            if (product.id == productId) {
-                product.copy(cartCount = product.cartCount - 1)
-            } else {
-                product
-            }
+        viewModelScope.launch {
+            productRepository.removeFromCart(productId)
         }
-        _products.value = updatedList
     }
 
-    fun removeItemFromCart(productId: Int) {
-        val currentList = _products.value ?: return
-        val updatedList = currentList.map { product ->
-            if (product.id == productId) {
-                product.copy(cartCount = 0)
-            } else {
-                product
-            }
+    fun clearCartItem(productId: Int) {
+        viewModelScope.launch {
+            productRepository.clearCartItem(productId)
         }
-        _products.value = updatedList
     }
 }
 

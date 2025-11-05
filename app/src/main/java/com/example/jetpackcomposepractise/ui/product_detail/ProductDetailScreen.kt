@@ -160,7 +160,7 @@ fun ProductDetailScreen(
                         // Using OutlinedIconButton for a secondary action look
                         onClick = {
                             scope.launch {
-                                actions.onToggleFavorite(product.id)
+                                actions.onToggleFavorite(product.id, !product.isFavorite)
                                 favoriteTooltipState.show()
                             }
                         },

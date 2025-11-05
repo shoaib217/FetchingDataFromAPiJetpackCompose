@@ -1,6 +1,9 @@
 package com.example.jetpackcomposepractise.di
 
 import android.content.Context
+import androidx.room.Room
+import com.example.jetpackcomposepractise.data.local.AppDatabase
+import com.example.jetpackcomposepractise.data.local.ProductDao
 import com.example.jetpackcomposepractise.data.remote.APIService
 import com.example.jetpackcomposepractise.data.repository.ProductRepository
 import com.example.jetpackcomposepractise.data.repository.ProductRepositoryImpl
@@ -51,7 +54,28 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideProductRepository(apiService: APIService,networkConnectivityHelper: NetworkConnectivityHelper): ProductRepository {
-        return ProductRepositoryImpl(apiService, networkConnectivityHelper)
+    fun provideProductRepository(
+        apiService: APIService,
+        productDao: ProductDao,
+        networkConnectivityHelper: NetworkConnectivityHelper,
+    ): ProductRepository {
+        return ProductRepositoryImpl(apiService, productDao, networkConnectivityHelper)
     }
+
+    @Provides
+    @Singleton
+    fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
+        return Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            "product_database"
+        ).build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideProductDao(appDatabase: AppDatabase): ProductDao {
+        return appDatabase.productDao()
+    }
+
 }

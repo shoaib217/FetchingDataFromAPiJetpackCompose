@@ -8,8 +8,8 @@ interface ClickActions {
     fun onDismiss()
 
     fun onAddQuantityItem(productId: Int)
-    fun onToggleFavorite(productId: Int)
+    fun onToggleFavorite(productId: Int, isFavorite: Boolean)
     fun onRemoveQuantityItem(productId: Int)
-    fun onRemoveFromCart(productId: Int)
+    fun clearCartItem(productId: Int)
 
 }

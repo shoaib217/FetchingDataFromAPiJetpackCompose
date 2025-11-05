@@ -59,16 +59,16 @@ class MainActivity : ComponentActivity() {
                             mainViewModel.addToCart(productId)
                         }
 
-                        override fun onToggleFavorite(productId: Int) {
-                            mainViewModel.markProductAsFavorite(productId)
+                        override fun onToggleFavorite(productId: Int, isFavorite: Boolean) {
+                            mainViewModel.markProductAsFavorite(productId, isFavorite)
                         }
 
                         override fun onRemoveQuantityItem(productId: Int) {
                             mainViewModel.removeFromCart(productId)
                         }
 
-                        override fun onRemoveFromCart(productId: Int) {
-                            mainViewModel.removeItemFromCart(productId)
+                        override fun clearCartItem(productId: Int) {
+                            mainViewModel.clearCartItem(productId)
                         }
                     })
 
