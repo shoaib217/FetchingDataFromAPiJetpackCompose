@@ -36,6 +36,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.example.jetpackcomposepractise.MainActivity.Companion.CART_SCREEN
 import com.example.jetpackcomposepractise.MainActivity.Companion.DETAIL_SCREEN
 import com.example.jetpackcomposepractise.MainActivity.Companion.FAVORITE_SCREEN
@@ -51,6 +52,8 @@ import com.example.jetpackcomposepractise.ui.favorites.FavoriteScreen
 import com.example.jetpackcomposepractise.ui.product_detail.ProductDetailScreen
 import com.example.jetpackcomposepractise.ui.products.ProductScreen
 import com.example.jetpackcomposepractise.ui.products.SingleSelectFilterChips
+
+const val URI = "https://www.jetpackcomposepractise.com/products"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -203,6 +206,7 @@ fun ProductRoot(
             composable(
                 "$DETAIL_SCREEN{id}",
                 arguments = listOf(navArgument("id") { type = NavType.IntType }),
+                deepLinks = listOf(navDeepLink { uriPattern = "$URI/{id}" }),
                 popExitTransition = {
                     slideOutHorizontally(
                         targetOffsetX = { it }, animationSpec = tween(100)
